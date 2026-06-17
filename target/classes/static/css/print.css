@@ -1,0 +1,45 @@
+/* =========================
+   Print
+   ========================= */
+
+@media print {
+    header,
+    nav,
+    .btn-submit,
+    .btn-action,
+    .btn-logout,
+    .btn-ghost,
+    .scanner-actions,
+    .toast-container {
+        display: none !important;
+    }
+
+    body {
+        background: white;
+    }
+
+    body::before {
+        display: none;
+    }
+
+    .container {
+        max-width: 100%;
+    }
+
+    .card,
+    .stat-card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+
+    .qr-code-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .qr-card {
+        page-break-inside: avoid;
+        border: 1px solid #000;
+    }
+
+
+}

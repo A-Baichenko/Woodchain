@@ -1,0 +1,55 @@
+services:
+  application:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: woodchain_app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/woodchain
+      SPRING_DATASOURCE_USERNAME: app
+      SPRING_DATASOURCE_PASSWORD: app
+      FABRIC_CHANNEL_NAME: mychannel
+      FABRIC_CHAINCODE_NAME: woodchain
+      FABRIC_CRYPTO_PATH: /fabric/org1.example.com
+      FABRIC_PEER_ENDPOINT: peer0.org1.example.com:7051
+      FABRIC_PEER_OVERRIDE_AUTH: peer0.org1.example.com
+      TZ: Europe/Berlin
+    volumes:
+      - /home/andre/hyperledger/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com:/fabric/org1.example.com:ro
+    networks:
+      - default
+      - fabric_test
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+
+  mysql-db:
+    image: mysql:8.4
+    container_name: woodchain_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: woodchain
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+      TZ: Europe/Berlin
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uapp", "-papp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+networks:
+  fabric_test:
+    external: true
+    name: fabric_test
+
+volumes:
+  mysql_data:

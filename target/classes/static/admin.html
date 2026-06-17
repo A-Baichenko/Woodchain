@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>WoodChain - Admin Kontrollzentrum</title>
+    <link rel="stylesheet" href="css/base.css?v=1">
+    <link rel="stylesheet" href="css/components.css?v=1">
+    <link rel="stylesheet" href="css/login.css?v=1">
+    <link rel="stylesheet" href="css/qr.css?v=1">
+    <link rel="stylesheet" href="css/responsive.css?v=1">
+    <link rel="stylesheet" href="css/print.css?v=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+</head>
+<body>
+
+<header class="app-hero">
+    <div class="hero-glow hero-glow-one"></div>
+    <div class="hero-glow hero-glow-two"></div>
+
+    <div class="container hero-content">
+        <div class="hero-copy">
+            <div class="eyebrow">
+                <span class="eyebrow-dot"></span>
+                WoodChain Admin Control
+            </div>
+
+            <h1>👑 Admin-Zentrale</h1>
+
+            <p>
+                Zentrales Kontrollzentrum für Ledger, Benutzerkonten, Rollen und alle
+                Lieferketten-Schritte von der Holzernte bis zum Handel.
+            </p>
+
+            <div class="hero-badges">
+                <span>🔗 Gesamt-Ledger</span>
+                <span>🌲 Förster</span>
+                <span>🚚 Logistik</span>
+                <span>🏭 Sägewerk</span>
+                <span>🏪 Handel</span>
+                <span>👤 Accounts</span>
+            </div>
+        </div>
+
+        <div class="hero-actions">
+            <button onclick="logout()" class="btn-ghost danger-outline">
+                Abmelden
+            </button>
+        </div>
+    </div>
+</header>
+
+<nav class="container">
+    <div class="tab-bar admin-tab-bar">
+        <button class="tab-btn active" onclick="switchAdminTab('ledgerView', this)">📊 Gesamt-Ledger</button>
+        <button class="tab-btn" onclick="switchAdminTab('foersterView', this)">🌲 Förster</button>
+        <button class="tab-btn" onclick="switchAdminTab('logistikView', this)">🚚 Logistik</button>
+        <button class="tab-btn" onclick="switchAdminTab('saegewerkView', this)">🏭 Sägewerk</button>
+        <button class="tab-btn" onclick="switchAdminTab('handelView', this)">🏪 Handel</button>
+        <button class="tab-btn" onclick="switchAdminTab('accountView', this)">👤 Accounts</button>
+    </div>
+</nav>
+
+<main class="container page-layout">
+
+    <div id="ledgerView" class="tab-content active">
+        <section class="stats-grid">
+            <div class="stat-card stat-green">
+                <span>🔗</span>
+                <div>
+                    <strong>Ledger</strong>
+                    <p>Alle Blockchain-Einträge</p>
+                </div>
+            </div>
+
+            <div class="stat-card stat-blue">
+                <span>🔍</span>
+                <div>
+                    <strong>Tracking</strong>
+                    <p>Historie prüfen</p>
+                </div>
+            </div>
+
+            <div class="stat-card stat-purple">
+                <span>👑</span>
+                <div>
+                    <strong>Admin</strong>
+                    <p>Komplette Kontrolle</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="card ledger-card">
+            <div class="section-title">
+                <div>
+                    <span class="section-kicker">Blockchain</span>
+                    <h2>🔗 Globaler Supply-Chain Ledger</h2>
+                    <p>Alle Holzobjekte, die aktuell in Hyperledger Fabric gespeichert sind.</p>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table id="assetTable">
+                    <thead>
+                    <tr>
+                        <th>NFC ID</th>
+                        <th>Holzart</th>
+                        <th>Volumen</th>
+                        <th>Aktueller Besitzer</th>
+                        <th>Status</th>
+                        <th>Blockchain-Zeitstempel</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card trace-card">
+            <div class="section-title">
+                <div>
+                    <span class="section-kicker">Rückverfolgung</span>
+                    <h2>🔍 Holzcharge prüfen</h2>
+                    <p>Prüfe ein Holzobjekt per ID oder QR-Code und zeige den aktuellen Blockchain-Zustand.</p>
+                </div>
+            </div>
+
+            <div class="form-row trace-search-row">
+                <input type="text" id="searchLogId" placeholder="NFC / Stamm-ID eingeben oder QR-Code scannen, z.B. WOOD001">
+
+                <button onclick="trackWoodHistory()" class="btn-action log-btn trace-search-btn">
+                    Holz prüfen
+                </button>
+            </div>
+
+            <div class="scanner-actions">
+                <button type="button" onclick="startTraceQrCameraScanner()" class="btn-action retail-btn">
+                    📷 QR für Rückverfolgung scannen
+                </button>
+
+                <button type="button" onclick="stopTraceQrCameraScanner()" class="btn-action danger-btn">
+                    Rückverfolgungs-Scanner stoppen
+                </button>
+            </div>
+
+            <p id="traceQrScannerStatus" class="scanner-status">Rückverfolgungs-Scanner bereit.</p>
+
+            <video id="traceQrScannerVideo" class="scanner-video" muted playsinline></video>
+            <canvas id="traceQrScannerCanvas" style="display: none;"></canvas>
+
+            <div id="timelineContainer" class="timeline-container" style="display: none;">
+                <h3>Aktueller Blockchain-Zustand</h3>
+                <ul id="timelineList" class="timeline-list"></ul>
+            </div>
+
+            <div id="mapContainer" class="map-container" style="display: none;">
+                <h3>🗺️ Standort- und Lieferkettenkarte</h3>
+                <p class="scanner-status">
+                    Die Karte zeigt den Weg der Holzcharge anhand der Blockchain-Historie.
+                </p>
+
+                <div id="woodMap"></div>
+            </div>
+        </section>
+    </div>
+
+    <div id="foersterView" class="tab-content">
+        <section class="card card-highlight">
+            <div class="section-title">
+                <div>
+                    <span class="section-kicker">Förster-Aktion</span>
+                    <h2>🌲 Holzcharge mit Lieferketten-Planung registrieren</h2>
+                    <p>
+                        Admin kann eine Holzcharge anlegen und direkt Logistikbetrieb sowie Ziel-Sägewerk festlegen.
+                    </p>
+                </div>
+            </div>
+
+            <form id="adminWoodForm">
+                <div class="admin-form-block">
+                    <div class="admin-form-heading">
+                        <span>1</span>
+                        <div>
+                            <h3>Holzdaten</h3>
+                            <p>ID, Holzart und Volumen der neuen Charge.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>NFC / Barcode / QR-ID</label>
+                        <input type="text" id="adminWoodId" placeholder="z.B. WOOD-20260614-000001" required>
+                    </div>
+
+                    <div class="scanner-actions">
+                        <button type="button" onclick="fillGeneratedWoodId('adminWoodId')" class="btn-action log-btn">
+                            ✨ ID automatisch erstellen
+                        </button>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Holzart</label>
+                            <input type="text" id="adminWoodType" placeholder="z.B. Buche, Eiche, Fichte" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Volumen (m³)</label>
+                            <input type="number" step="0.1" id="adminVolume" placeholder="z.B. 12.5" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="admin-form-block">
+                    <div class="admin-form-heading">
+                        <span>2</span>
+                        <div>
+                            <h3>Lieferkette planen</h3>
+                            <p>Wähle den Logistikbetrieb zum Sägewerk und das Ziel-Sägewerk.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Logistikbetrieb zum Sägewerk</label>
+                            <select id="adminCreateLogisticsSelect">
+                                <option value="">Logistikbetriebe werden geladen...</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Ziel-Sägewerk</label>
+                            <select id="adminCreateSawmillSelect">
+                                <option value="">Sägewerke werden geladen...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="partner-preview-grid">
+                        <div class="partner-preview-box">
+                            <strong>🚚 Ausgewählte Logistik</strong>
+                            <p id="adminCreateLogisticsPreview">Noch nicht ausgewählt.</p>
+                        </div>
+
+                        <div class="partner-preview-box">
+                            <strong>🏭 Ausgewähltes Sägewerk</strong>
+                            <p id="adminCreateSawmillPreview">Noch nicht ausgewählt.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit">
+                    🔐 Holzcharge in Blockchain registrieren
+                </button>
+            </form>
+        </section>
+    </div>
+
+    <div id="logistikView" class="tab-content">
+        <section class="card card-highlight">
+            <div class="section-title">
+                <div>
+                    <span class="section-kicker">Logistik-Aktion</span>
+                    <h2>🚚 Transport als Administrator bestätigen</h2>
+                    <p>
+                        Admin kann offene Transportaufträge prüfen und den Transport zum Sägewerk oder zum Handel bestätigen.
+                    </p>
+                </div>
+            </div>
+
+            <div class="admin-form-block">
+                <div class="admin-form-heading">
+                    <span>1</span>
+                    <div>
+                        <h3>Offene Transportaufträge</h3>
+                        <p>HARVESTED = Transport zum Sägewerk, PROCESSED = Transport zum Handel.</p>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Transportaufträge durchsuchen</label>
+                        <input type="text" id="adminLogisticsSearch" placeholder="Suche nach ID, Holzart, Ziel oder Status..." oninput="filterAdminLogisticsOrders()">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Offenen Auftrag auswählen</label>
+                        <select id="adminLogisticsOrderSelect" onchange="selectAdminLogisticsOrder()">
+                            <option value="">Aufträge werden geladen...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="scanner-actions">
+                    <button type="button" onclick="loadAdminLogisticsOrders()" class="btn-action log-btn">
+                        🔄 Transportaufträge aktualisieren
+                    </button>
+                </div>
+
+                <p id="adminLogisticsOrdersStatus" class="scanner-status">Transportaufträge werden geladen...</p>
+            </div>
+
+            <div id="adminLogisticsPreviewBox" class="logistics-preview-box" style="display: none;">
+                <div class="admin-form-heading">
+                    <span>2</span>
+                    <div>
+                        <h3>Transportauftrag erkannt</h3>
+                        <p id="adminLogisticsPreviewSubtitle">Blockchain-Daten wurden geladen.</p>
+                    </div>
+                </div>
+
+                <div class="logistics-preview-grid">
+                    <div class="partner-preview-box">
+                        <strong>🪵 Holzcharge</strong>
+                        <p id="adminLogisticsWoodPreview">-</p>
+                    </div>
+
+                    <div class="partner-preview-box">
+                        <strong>📌 Status</strong>
+                        <p id="adminLogisticsStatusPreview">-</p>
+                    </div>
+
+                    <div class="partner-preview-box">
+                        <strong>🚚 Geplante Logistik</strong>
+                        <p id="adminLogisticsPlannedPreview">-</p>
+                    </div>
+
+                    <div class="partner-preview-box">
+                        <strong>🎯 Ziel</strong>
+                        <p id="adminLogisticsTargetPreview">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-form-block">
+                <div class="admin-form-heading">
+                    <span>3</span>
+                    <div>
+                        <h3>Ausführenden Logistik-Account wählen</h3>
+                        <p>Der ausgewählte Logistik-Account wird als Besitzer in der Blockchain gespeichert.</p>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Logistik-Account</label>
+                    <select id="adminLogisticsActorSelect">
+                        <option value="">Logistikbetriebe werden geladen...</option>
+                    </select>
+                </div>
+
+                <div class="partner-preview-box">
+                    <strong>🚚 Ausgewählte Logistik</strong>
+                    <p id="adminLogisticsActorPreview">Noch nicht ausgewählt.</p>
+                </div>
+            </div>
+
+            <button type="button" onclick="confirmAdminLogisticsTransport()" class="btn-submit log-btn">
+                🚚 Transport in Blockchain bestätigen
+            </button>
+        </section>
+    </div>
+
+    <div id="saegewerkView" class="tab-content">
+        <section class="card card-highlight">
+            <div class="section-title">
+                <div>
+                    <span class="section-kicker">Sägewerk-Aktion</span>
+                    <h2>🏭 Wareneingang & Versandplanung als Admin</h2>
+                    <p>
+                        Admin kann zuerst den Wareneingang bestätigen und später die Versandplanung zum Handel speichern.
+                    </p>
+                </div>
+            </div>
+
+            <div class="admin-form-block">
+                <div class="admin-form-heading">
+                    <span>1</span>
+                    <div>
+                        <h3>Wareneingang bestätigen</h3>
+                        <p>Holzchargen mit Status IN_TRANSPORT_TO_SAWMILL können auf PROCESSED gesetzt werden.</p>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Wareneingänge durchsuchen</label>
+                        <input type="text" id="adminSawmillIncomingSearch" placeholder="Suche nach ID, Holzart oder Logistik..." oninput="filterAdminSawmillIncomingOrders()">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Wareneingang auswählen</label>
+                        <select id="adminSawmillIncomingSelect" onchange="selectAdminSawmillIncomingOrder()">
+                            <option value="">Wareneingänge werden geladen...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Sägewerk-Account</label>
+                        <select id="adminSawmillActorSelect">
+                            <option value="">Sägewerke werden geladen...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Aktion</label>
+                        <button type="button" onclick="confirmAdminSawmillIncoming()" class="btn-submit mill-btn">
+                            ✅ Wareneingang bestätigen
+                        </button>
+                    </div>
+                </div>
+
+                <div class="scanner-actions">
+                    <button type="button" onclick="loadAdminSawmillIncomingOrders()" class="btn-action mill-btn">
+                        🔄 Wareneingänge aktualisieren
+                    </button>
+                </div>
+
+                <p id="adminSawmillIncomingStatus" class="scanner-status">Wareneingänge werden geladen...</p>
+            </div>
+
+            <div class="admin-form-block">
+                <div class="admin-form-heading">
+                    <span>2</span>
+                    <div>
+                        <h3>Versand zum Handel planen</h3>
+                        <p>PROCESSED-Holz ohne Versandplanung erhält Logistikbetrieb und Ziel-Händler.</p>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Verarbeitete Holzchargen suchen</label>
+                        <input type="text" id="adminSawmillProcessedSearch" placeholder="Suche nach ID, Holzart oder Besitzer..." oninput="filterAdminSawmillProcessedOrders()">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Verarbeitete Holzcharge auswählen</label>
+                        <select id="adminSawmillProcessedSelect" onchange="selectAdminSawmillProcessedOrder()">
+                            <option value="">Verarbeitete Holzchargen werden geladen...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Logistikbetrieb zum Handel</label>
+                        <select id="adminPlanLogisticsToRetailSelect">
+                            <option value="">Logistikbetriebe werden geladen...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ziel-Händler</label>
+                        <select id="adminPlanRetailSelect">
+                            <option value="">Händler werden geladen...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="partner-preview-grid">
+                    <div class="partner-preview-box">
+                        <strong>🚚 Ausgewählte Logistik</strong>
+                        <p id="adminPlanLogisticsToRetailPreview">Noch nicht ausgewählt.</p>
+                    </div>
+
+                    <div class="partner-preview-box">
+                        <strong>🏪 Ausgewählter Händler</strong>
+                        <p id="adminPlanRetailPreview">Noch nicht ausgewählt.</p>
+                    </div>
+                </div>
+
+                <div class="scanner-actions">
+                    <button type="button" onclick="loadAdminSawmillProcessedOrders()" class="btn-action mill-btn">
+                        🔄 Verarbeitete Holzchargen aktualisieren
+                    </button>
+                </div>
+
+                <p id="adminSawmillProcessedStatus" class="scanner-status">Verarbeitete Holzchargen werden geladen...</p>
+
+                <button type="button" onclick="saveAdminSawmillShippingPlan()" class="btn-submit mill-btn">
+                    🚚 Versandplanung speichern
+                </button>
+            </div>
+        </section>
+    </div>
+
+    <div id="handelView" class="tab-content">
+        <section class="card card-highlight">
+            <div class="section-title">
+                <div>
+                    <span class="section-kicker">Handel-Aktion</span>
+                    <h2>🏪 Lieferung als Admin abschließen</h2>
+                    <p>
+                        Admin kann Holzchargen mit Status IN_TRANSPORT_TO_RETAIL annehmen und auf SOLD setzen.
+                    </p>
+                </div>
+            </div>
+
+            <div class="admin-form-block">
+                <div class="admin-form-heading">
+                    <span>1</span>
+                    <div>
+                        <h3>Offene Lieferungen</h3>
+                        <p>Hier erscheinen Holzchargen, die auf dem Weg zum Handel sind.</p>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Lieferungen durchsuchen</label>
+                        <input type="text" id="adminRetailSearch" placeholder="Suche nach ID, Holzart, Händler oder Logistik..." oninput="filterAdminRetailOrders()">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Lieferung auswählen</label>
+                        <select id="adminRetailOrderSelect" onchange="selectAdminRetailOrder()">
+                            <option value="">Lieferungen werden geladen...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="scanner-actions">
+                    <button type="button" onclick="loadAdminRetailOrders()" class="btn-action retail-btn">
+                        🔄 Lieferungen aktualisieren
+                    </button>
+                </div>
+
+                <p id="adminRetailOrdersStatus" class="scanner-status">Lieferungen werden geladen...</p>
+            </div>
+
+            <div class="admin-form-block">
+                <div class="admin-form-heading">
+                    <span>2</span>
+                    <div>
+                        <h3>Handels-Account wählen</h3>
+                        <p>Dieser Händler wird als finaler Besitzer in der Blockchain gespeichert.</p>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Händler</label>
+                    <select id="adminRetailActorSelect">
+                        <option value="">Händler werden geladen...</option>
+                    </select>
+                </div>
+
+                <div class="partner-preview-box">
+                    <strong>🏪 Ausgewählter Händler</strong>
+                    <p id="adminRetailActorPreview">Noch nicht ausgewählt.</p>
+                </div>
+            </div>
+
+            <button type="button" onclick="confirmAdminRetailSale()" class="btn-submit retail-btn">
+                🏪 Lieferung abschließen / SOLD setzen
+            </button>
+        </section>
+    </div>
+
+    <div id="accountView" class="tab-content">
+        <section class="card card-highlight admin-account-card">
+            <div class="section-title">
+                <div>
+                    <span class="section-kicker">Account-Verwaltung</span>
+                    <h2>👤 Neuen Benutzer erstellen</h2>
+                    <p>
+                        Erstelle Benutzerkonten für Förster, Logistik, Sägewerk, Handel oder weitere Admins.
+                        Adresse, Ort und Land werden getrennt eingegeben und automatisch in Koordinaten umgewandelt.
+                    </p>
+                </div>
+            </div>
+
+            <div class="admin-form-block">
+                <div class="admin-form-heading">
+                    <span>1</span>
+                    <div>
+                        <h3>Benutzerdaten</h3>
+                        <p>Name, Login und Rolle des neuen Accounts.</p>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Anzeigename</label>
+                        <input type="text" id="newDisplayName" placeholder="z.B. Adam">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Benutzername</label>
+                        <input type="text" id="newUsername" placeholder="z.B. adam">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Rolle</label>
+                    <select id="newRole">
+                        <option value="FOERSTER">Förster</option>
+                        <option value="LOGISTIK">Logistik</option>
+                        <option value="SAEGEWERK">Sägewerk</option>
+                        <option value="HANDEL">Handel</option>
+                        <option value="ADMIN">Admin</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="admin-form-block">
+                <div class="admin-form-heading">
+                    <span>2</span>
+                    <div>
+                        <h3>Standortdaten</h3>
+                        <p>Adresse getrennt eingeben, damit das Land sauber gespeichert wird.</p>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Straße und Hausnummer</label>
+                        <input type="text" id="newStreet" placeholder="z.B. 2 Av. René Porterat">
+                    </div>
+
+                    <div class="form-group">
+                        <label>PLZ</label>
+                        <input type="text" id="newPostalCode" placeholder="z.B. 88500">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ort / Stadt</label>
+                        <input type="text" id="newCity" placeholder="z.B. Mirecourt">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Land</label>
+                        <input type="text" id="newCountry" placeholder="z.B. France">
+                    </div>
+                </div>
+
+                <div class="admin-address-preview">
+                    <strong>Vollständige Adresse</strong>
+                    <p id="fullAddressPreview">Noch keine Adresse eingegeben.</p>
+                </div>
+
+                <div class="scanner-actions">
+                    <button type="button" onclick="geocodeAddressForAdmin()" class="btn-action log-btn">
+                        Adresse automatisch in Koordinaten umwandeln
+                    </button>
+                </div>
+
+                <p id="geocodeStatus" class="scanner-status">Noch keine Koordinaten geladen.</p>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Latitude / Breitengrad</label>
+                        <input type="text" id="newLatitude" placeholder="wird automatisch gefüllt" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Longitude / Längengrad</label>
+                        <input type="text" id="newLongitude" placeholder="wird automatisch gefüllt" readonly>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Land wird gespeichert als</label>
+                    <input type="text" id="countryPreview" placeholder="wird aus Land übernommen" readonly>
+                </div>
+
+                <input type="hidden" id="newLocation">
+                <input type="hidden" id="newAddress">
+            </div>
+
+            <div class="admin-form-block">
+                <div class="admin-form-heading">
+                    <span>3</span>
+                    <div>
+                        <h3>Sicherheit</h3>
+                        <p>Passwort für den neuen Benutzer festlegen.</p>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Passwort</label>
+                        <input type="password" id="newPassword" placeholder="Passwort eingeben">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Passwort wiederholen</label>
+                        <input type="password" id="newPasswordRepeat" placeholder="Passwort erneut eingeben">
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" onclick="createAccountAsAdmin()" class="btn-submit">
+                Benutzer erstellen
+            </button>
+        </section>
+    </div>
+
+</main>
+
+<div id="toastContainer" class="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="js/core.js?v=1"></script>
+<script src="js/auth.js?v=1"></script>
+<script src="js/ledger.js?v=1"></script>
+<script src="js/partners.js?v=1"></script>
+<script src="js/qr-scanner.js?v=1"></script>
+<script src="js/tracking.js?v=1"></script>
+<script src="js/map.js?v=1"></script>
+<script src="js/logistik.js?v=1"></script>
+<script src="js/saegewerk.js?v=1"></script>
+<script src="js/handel.js?v=1"></script>
+<script src="js/admin-accounts.js?v=1"></script>
+<script>
+    checkAccess('ADMIN');
+
+    let adminLogisticsOrders = [];
+    let filteredAdminLogisticsOrders = [];
+    let currentAdminLogisticsWood = null;
+
+    let adminSawmillIncomingOrders = [];
+    let filteredAdminSawmillIncomingOrders = [];
+    let currentAdminSawmillIncomingWood = null;
+
+    let adminSawmillProcessedOrders = [];
+    let filteredAdminSawmillProcessedOrders = [];
+    let currentAdminSawmillProcessedWood = null;
+
+    let adminRetailOrders = [];
+    let filteredAdminRetailOrders = [];
+    let currentAdminRetailWood = null;
+
+    document.addEventListener("DOMContentLoaded", async () => {
+        await loadGlobalLedger();
+        await setupAdminSelects();
+        await loadAdminLogisticsOrders();
+        await loadAdminSawmillIncomingOrders();
+        await loadAdminSawmillProcessedOrders();
+        await loadAdminRetailOrders();
+        setupAdminWoodForm();
+    });
+
+    function switchAdminTab(viewId, buttonElement) {
+        document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+        document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
+
+        const view = document.getElementById(viewId);
+
+        if (view) {
+            view.classList.add("active");
+        }
+
+        if (buttonElement) {
+            buttonElement.classList.add("active");
+        }
+
+        if (viewId === "ledgerView") {
+            loadGlobalLedger();
+        }
+
+        if (viewId === "logistikView") {
+            loadAdminLogisticsOrders();
+        }
+
+        if (viewId === "saegewerkView") {
+            loadAdminSawmillIncomingOrders();
+            loadAdminSawmillProcessedOrders();
+        }
+
+        if (viewId === "handelView") {
+            loadAdminRetailOrders();
+        }
+    }
+
+    async function setupAdminSelects() {
+        await loadUsersByRoleIntoSelect("LOGISTIK", "adminCreateLogisticsSelect", "Logistikbetrieb auswählen");
+        await loadUsersByRoleIntoSelect("SAEGEWERK", "adminCreateSawmillSelect", "Sägewerk auswählen");
+
+        await loadUsersByRoleIntoSelect("LOGISTIK", "adminLogisticsActorSelect", "Logistikbetrieb auswählen");
+
+        await loadUsersByRoleIntoSelect("SAEGEWERK", "adminSawmillActorSelect", "Sägewerk auswählen");
+        await loadUsersByRoleIntoSelect("LOGISTIK", "adminPlanLogisticsToRetailSelect", "Logistikbetrieb auswählen");
+        await loadUsersByRoleIntoSelect("HANDEL", "adminPlanRetailSelect", "Händler auswählen");
+
+        await loadUsersByRoleIntoSelect("HANDEL", "adminRetailActorSelect", "Händler auswählen");
+
+        setupPartnerPreview("adminCreateLogisticsSelect", "adminCreateLogisticsPreview");
+        setupPartnerPreview("adminCreateSawmillSelect", "adminCreateSawmillPreview");
+        setupPartnerPreview("adminLogisticsActorSelect", "adminLogisticsActorPreview");
+        setupPartnerPreview("adminPlanLogisticsToRetailSelect", "adminPlanLogisticsToRetailPreview");
+        setupPartnerPreview("adminPlanRetailSelect", "adminPlanRetailPreview");
+        setupPartnerPreview("adminRetailActorSelect", "adminRetailActorPreview");
+    }
+
+    function adminPartnerName(partner) {
+        return partner?.displayName || partner?.username || "";
+    }
+
+    function adminPartnerLocation(partner) {
+        return partner?.location || partner?.address || "Unbekannter Standort";
+    }
+
+    function setupAdminWoodForm() {
+        const form = document.getElementById("adminWoodForm");
+
+        if (!form) {
+            return;
+        }
+
+        form.addEventListener("submit", adminCreateWoodWithPlan);
+    }
+
+    async function adminCreateWoodWithPlan(event) {
+        event.preventDefault();
+
+        const id = document.getElementById("adminWoodId").value.trim();
+        const treeType = document.getElementById("adminWoodType").value.trim();
+        const volumeM3 = document.getElementById("adminVolume").value.trim();
+
+        if (!id || !treeType || !volumeM3) {
+            showWarning("Bitte ID, Holzart und Volumen ausfüllen.", "Eingaben fehlen");
+            return;
+        }
+
+        const logisticsPartner = getSelectedPartner("adminCreateLogisticsSelect");
+        const sawmillPartner = getSelectedPartner("adminCreateSawmillSelect");
+
+        if (!logisticsPartner) {
+            showWarning("Bitte einen Logistikbetrieb auswählen.", "Logistik fehlt");
+            return;
+        }
+
+        if (!sawmillPartner) {
+            showWarning("Bitte ein Ziel-Sägewerk auswählen.", "Sägewerk fehlt");
+            return;
+        }
+
+        const profile = await getCurrentUserProfile();
+        const origin = await getOriginCountryAutomatically(profile);
+
+        const owner = "Forstamt " + (
+            profile?.displayName ||
+            localStorage.getItem("displayName") ||
+            localStorage.getItem("username") ||
+            "Admin"
+        );
+
+        const location =
+            profile?.location ||
+            profile?.address ||
+            localStorage.getItem("location") ||
+            localStorage.getItem("address") ||
+            "Admin Standort";
+
+        const params = new URLSearchParams({
+            id: id,
+            treeType: treeType,
+            volumeM3: volumeM3,
+            origin: origin,
+            owner: owner,
+            location: location,
+            logisticsToSawmill: adminPartnerName(logisticsPartner),
+            sawmill: adminPartnerName(sawmillPartner)
+        });
+
+        try {
+            const response = await fetch("/api/wood/with-plan?" + params.toString(), {
+                method: "POST",
+                headers: getAuthHeaders()
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                showError("Holzcharge konnte nicht gespeichert werden. " + text, "Speichern fehlgeschlagen");
+                return;
+            }
+
+            showSuccess("Holzcharge wurde mit Lieferkettenplanung gespeichert.", "Holz gespeichert");
+
+            document.getElementById("adminWoodForm").reset();
+
+            await loadGlobalLedger();
+            await loadAdminLogisticsOrders();
+
+            const ledgerButton = document.querySelector(".tab-btn");
+            switchAdminTab("ledgerView", ledgerButton);
+
+        } catch (error) {
+            console.error("Admin Holz erstellen fehlgeschlagen:", error);
+            showError("Technischer Fehler beim Speichern.", "Blockchain-Fehler");
+        }
+    }
+
+    async function fetchAdminLedgerAssets() {
+        const response = await fetch("/api/wood", {
+            method: "GET",
+            headers: getAuthHeaders()
+        });
+
+        if (!response.ok) {
+            throw new Error(await response.text());
+        }
+
+        return await response.json();
+    }
+
+    function adminSearchMatch(wood, search) {
+        const text = [
+            wood.id,
+            wood.treeType,
+            wood.volumeM3,
+            wood.origin,
+            wood.owner,
+            wood.status,
+            wood.location,
+            wood.logisticsToSawmill,
+            wood.sawmill,
+            wood.logisticsToRetail,
+            wood.retail,
+            wood.targetLocation
+        ]
+            .filter(value => value !== null && value !== undefined)
+            .join(" ")
+            .toLowerCase();
+
+        return text.includes(search);
+    }
+
+    async function loadAdminLogisticsOrders() {
+        const status = document.getElementById("adminLogisticsOrdersStatus");
+        const select = document.getElementById("adminLogisticsOrderSelect");
+
+        if (status) {
+            status.innerText = "Transportaufträge werden geladen...";
+        }
+
+        if (select) {
+            select.innerHTML = `<option value="">Aufträge werden geladen...</option>`;
+        }
+
+        try {
+            const assets = await fetchAdminLedgerAssets();
+
+            adminLogisticsOrders = assets.filter(wood => {
+                if (wood.status === "HARVESTED" && wood.logisticsToSawmill) {
+                    return true;
+                }
+
+                if (wood.status === "PROCESSED" && wood.logisticsToRetail) {
+                    return true;
+                }
+
+                return false;
+            });
+
+            filteredAdminLogisticsOrders = [...adminLogisticsOrders];
+            renderAdminLogisticsOrders();
+
+            if (status) {
+                status.innerText = adminLogisticsOrders.length === 0
+                    ? "Keine offenen Transportaufträge gefunden."
+                    : `${adminLogisticsOrders.length} offene Transportaufträge gefunden.`;
+            }
+
+        } catch (error) {
+            console.error(error);
+            showError("Transportaufträge konnten nicht geladen werden.", "Ladefehler");
+        }
+    }
+
+    function filterAdminLogisticsOrders() {
+        const search = (document.getElementById("adminLogisticsSearch")?.value || "").trim().toLowerCase();
+
+        filteredAdminLogisticsOrders = !search
+            ? [...adminLogisticsOrders]
+            : adminLogisticsOrders.filter(wood => adminSearchMatch(wood, search));
+
+        renderAdminLogisticsOrders();
+    }
+
+    function renderAdminLogisticsOrders() {
+        const select = document.getElementById("adminLogisticsOrderSelect");
+
+        if (!select) {
+            return;
+        }
+
+        select.innerHTML = `<option value="">Transportauftrag auswählen...</option>`;
+
+        if (filteredAdminLogisticsOrders.length === 0) {
+            select.innerHTML = `<option value="">Keine passenden Transportaufträge</option>`;
+            return;
+        }
+
+        filteredAdminLogisticsOrders.forEach(wood => {
+            const phase = wood.status === "HARVESTED" ? "Zum Sägewerk" : "Zum Handel";
+            const target = wood.status === "HARVESTED" ? wood.sawmill : wood.retail;
+
+            const option = document.createElement("option");
+            option.value = wood.id;
+            option.textContent = `${wood.id} | ${phase} | ${wood.treeType || "-"} | Ziel: ${target || "-"}`;
+            select.appendChild(option);
+        });
+    }
+
+    function selectAdminLogisticsOrder() {
+        const select = document.getElementById("adminLogisticsOrderSelect");
+
+        if (!select || !select.value) {
+            return;
+        }
+
+        currentAdminLogisticsWood = adminLogisticsOrders.find(wood => wood.id === select.value) || null;
+        renderAdminLogisticsPreview(currentAdminLogisticsWood);
+    }
+
+    function renderAdminLogisticsPreview(wood) {
+        if (!wood) {
+            return;
+        }
+
+        const box = document.getElementById("adminLogisticsPreviewBox");
+        const subtitle = document.getElementById("adminLogisticsPreviewSubtitle");
+        const woodPreview = document.getElementById("adminLogisticsWoodPreview");
+        const statusPreview = document.getElementById("adminLogisticsStatusPreview");
+        const plannedPreview = document.getElementById("adminLogisticsPlannedPreview");
+        const targetPreview = document.getElementById("adminLogisticsTargetPreview");
+
+        const phase = wood.status === "HARVESTED"
+            ? "Transport vom Wald zum Sägewerk"
+            : "Transport vom Sägewerk zum Handel";
+
+        const planned = wood.status === "HARVESTED"
+            ? wood.logisticsToSawmill
+            : wood.logisticsToRetail;
+
+        const target = wood.status === "HARVESTED"
+            ? wood.sawmill
+            : wood.retail;
+
+        if (subtitle) {
+            subtitle.innerText = phase;
+        }
+
+        if (woodPreview) {
+            woodPreview.innerHTML = `
+                <strong>ID:</strong> ${wood.id || "-"}<br>
+                <strong>Holzart:</strong> ${wood.treeType || "-"}<br>
+                <strong>Volumen:</strong> ${wood.volumeM3 || "-"} m³
+            `;
+        }
+
+        if (statusPreview) {
+            statusPreview.innerHTML = `
+                <strong>Status:</strong> ${wood.status || "-"}<br>
+                <strong>Besitzer:</strong> ${wood.owner || "-"}<br>
+                <strong>Standort:</strong> ${wood.location || "-"}
+            `;
+        }
+
+        if (plannedPreview) {
+            plannedPreview.innerText = planned || "-";
+        }
+
+        if (targetPreview) {
+            targetPreview.innerText = target || "-";
+        }
+
+        if (box) {
+            box.style.display = "block";
+        }
+    }
+
+    async function confirmAdminLogisticsTransport() {
+        if (!currentAdminLogisticsWood) {
+            showWarning("Bitte zuerst einen Transportauftrag auswählen.", "Auftrag fehlt");
+            return;
+        }
+
+        const actor = getSelectedPartner("adminLogisticsActorSelect");
+
+        if (!actor) {
+            showWarning("Bitte einen Logistik-Account auswählen.", "Logistik fehlt");
+            return;
+        }
+
+        const wood = currentAdminLogisticsWood;
+
+        const endpoint = wood.status === "HARVESTED"
+            ? `/api/wood/${encodeURIComponent(wood.id)}/transport-to-sawmill`
+            : `/api/wood/${encodeURIComponent(wood.id)}/transport-to-retail`;
+
+        const params = new URLSearchParams({
+            logisticsOwner: adminPartnerName(actor),
+            logisticsLocation: adminPartnerLocation(actor)
+        });
+
+        try {
+            const response = await fetch(endpoint + "?" + params.toString(), {
+                method: "POST",
+                headers: getAuthHeaders()
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                showError("Transport konnte nicht gespeichert werden. " + text, "Fehler");
+                return;
+            }
+
+            showSuccess("Transport wurde in der Blockchain bestätigt.", "Transport gespeichert");
+
+            currentAdminLogisticsWood = null;
+
+            const box = document.getElementById("adminLogisticsPreviewBox");
+
+            if (box) {
+                box.style.display = "none";
+            }
+
+            await loadGlobalLedger();
+            await loadAdminLogisticsOrders();
+
+        } catch (error) {
+            console.error(error);
+            showError("Technischer Fehler beim Transport.", "Blockchain-Fehler");
+        }
+    }
+
+    async function loadAdminSawmillIncomingOrders() {
+        const status = document.getElementById("adminSawmillIncomingStatus");
+        const select = document.getElementById("adminSawmillIncomingSelect");
+
+        if (status) {
+            status.innerText = "Wareneingänge werden geladen...";
+        }
+
+        if (select) {
+            select.innerHTML = `<option value="">Wareneingänge werden geladen...</option>`;
+        }
+
+        try {
+            const assets = await fetchAdminLedgerAssets();
+
+            adminSawmillIncomingOrders = assets.filter(wood => wood.status === "IN_TRANSPORT_TO_SAWMILL");
+            filteredAdminSawmillIncomingOrders = [...adminSawmillIncomingOrders];
+
+            renderAdminSawmillIncomingOrders();
+
+            if (status) {
+                status.innerText = adminSawmillIncomingOrders.length === 0
+                    ? "Keine offenen Wareneingänge gefunden."
+                    : `${adminSawmillIncomingOrders.length} offene Wareneingänge gefunden.`;
+            }
+
+        } catch (error) {
+            console.error(error);
+            showError("Wareneingänge konnten nicht geladen werden.", "Ladefehler");
+        }
+    }
+
+    function filterAdminSawmillIncomingOrders() {
+        const search = (document.getElementById("adminSawmillIncomingSearch")?.value || "").trim().toLowerCase();
+
+        filteredAdminSawmillIncomingOrders = !search
+            ? [...adminSawmillIncomingOrders]
+            : adminSawmillIncomingOrders.filter(wood => adminSearchMatch(wood, search));
+
+        renderAdminSawmillIncomingOrders();
+    }
+
+    function renderAdminSawmillIncomingOrders() {
+        const select = document.getElementById("adminSawmillIncomingSelect");
+
+        if (!select) {
+            return;
+        }
+
+        select.innerHTML = `<option value="">Wareneingang auswählen...</option>`;
+
+        if (filteredAdminSawmillIncomingOrders.length === 0) {
+            select.innerHTML = `<option value="">Keine passenden Wareneingänge</option>`;
+            return;
+        }
+
+        filteredAdminSawmillIncomingOrders.forEach(wood => {
+            const option = document.createElement("option");
+            option.value = wood.id;
+            option.textContent = `${wood.id} | ${wood.treeType || "-"} | Ziel-Sägewerk: ${wood.sawmill || "-"}`;
+            select.appendChild(option);
+        });
+    }
+
+    function selectAdminSawmillIncomingOrder() {
+        const select = document.getElementById("adminSawmillIncomingSelect");
+
+        if (!select || !select.value) {
+            return;
+        }
+
+        currentAdminSawmillIncomingWood = adminSawmillIncomingOrders.find(wood => wood.id === select.value) || null;
+    }
+
+    async function confirmAdminSawmillIncoming() {
+        if (!currentAdminSawmillIncomingWood) {
+            showWarning("Bitte zuerst einen Wareneingang auswählen.", "Wareneingang fehlt");
+            return;
+        }
+
+        const actor = getSelectedPartner("adminSawmillActorSelect");
+
+        if (!actor) {
+            showWarning("Bitte einen Sägewerk-Account auswählen.", "Sägewerk fehlt");
+            return;
+        }
+
+        const params = new URLSearchParams({
+            newOwner: adminPartnerName(actor),
+            newLocation: adminPartnerLocation(actor)
+        });
+
+        try {
+            const response = await fetch(
+                `/api/wood/${encodeURIComponent(currentAdminSawmillIncomingWood.id)}/process?` + params.toString(),
+                {
+                    method: "POST",
+                    headers: getAuthHeaders()
+                }
+            );
+
+            if (!response.ok) {
+                const text = await response.text();
+                showError("Wareneingang konnte nicht bestätigt werden. " + text, "Fehler");
+                return;
+            }
+
+            showSuccess("Wareneingang bestätigt. Status ist jetzt PROCESSED.", "Sägewerk gespeichert");
+
+            currentAdminSawmillIncomingWood = null;
+
+            await loadGlobalLedger();
+            await loadAdminSawmillIncomingOrders();
+            await loadAdminSawmillProcessedOrders();
+
+        } catch (error) {
+            console.error(error);
+            showError("Technischer Fehler beim Sägewerk-Schritt.", "Blockchain-Fehler");
+        }
+    }
+
+    async function loadAdminSawmillProcessedOrders() {
+        const status = document.getElementById("adminSawmillProcessedStatus");
+        const select = document.getElementById("adminSawmillProcessedSelect");
+
+        if (status) {
+            status.innerText = "Verarbeitete Holzchargen werden geladen...";
+        }
+
+        if (select) {
+            select.innerHTML = `<option value="">Verarbeitete Holzchargen werden geladen...</option>`;
+        }
+
+        try {
+            const assets = await fetchAdminLedgerAssets();
+
+            adminSawmillProcessedOrders = assets.filter(wood =>
+                wood.status === "PROCESSED" &&
+                !wood.logisticsToRetail &&
+                !wood.retail
+            );
+
+            filteredAdminSawmillProcessedOrders = [...adminSawmillProcessedOrders];
+
+            renderAdminSawmillProcessedOrders();
+
+            if (status) {
+                status.innerText = adminSawmillProcessedOrders.length === 0
+                    ? "Keine verarbeiteten Holzchargen ohne Versandplanung gefunden."
+                    : `${adminSawmillProcessedOrders.length} verarbeitete Holzcharge(n) bereit.`;
+            }
+
+        } catch (error) {
+            console.error(error);
+            showError("Verarbeitete Holzchargen konnten nicht geladen werden.", "Ladefehler");
+        }
+    }
+
+    function filterAdminSawmillProcessedOrders() {
+        const search = (document.getElementById("adminSawmillProcessedSearch")?.value || "").trim().toLowerCase();
+
+        filteredAdminSawmillProcessedOrders = !search
+            ? [...adminSawmillProcessedOrders]
+            : adminSawmillProcessedOrders.filter(wood => adminSearchMatch(wood, search));
+
+        renderAdminSawmillProcessedOrders();
+    }
+
+    function renderAdminSawmillProcessedOrders() {
+        const select = document.getElementById("adminSawmillProcessedSelect");
+
+        if (!select) {
+            return;
+        }
+
+        select.innerHTML = `<option value="">Verarbeitete Holzcharge auswählen...</option>`;
+
+        if (filteredAdminSawmillProcessedOrders.length === 0) {
+            select.innerHTML = `<option value="">Keine passenden Holzchargen</option>`;
+            return;
+        }
+
+        filteredAdminSawmillProcessedOrders.forEach(wood => {
+            const option = document.createElement("option");
+            option.value = wood.id;
+            option.textContent = `${wood.id} | ${wood.treeType || "-"} | Besitzer: ${wood.owner || "-"}`;
+            select.appendChild(option);
+        });
+    }
+
+    function selectAdminSawmillProcessedOrder() {
+        const select = document.getElementById("adminSawmillProcessedSelect");
+
+        if (!select || !select.value) {
+            return;
+        }
+
+        currentAdminSawmillProcessedWood = adminSawmillProcessedOrders.find(wood => wood.id === select.value) || null;
+    }
+
+    async function saveAdminSawmillShippingPlan() {
+        if (!currentAdminSawmillProcessedWood) {
+            showWarning("Bitte zuerst eine verarbeitete Holzcharge auswählen.", "Holzcharge fehlt");
+            return;
+        }
+
+        const logistics = getSelectedPartner("adminPlanLogisticsToRetailSelect");
+        const retail = getSelectedPartner("adminPlanRetailSelect");
+        const sawmill = getSelectedPartner("adminSawmillActorSelect");
+
+        if (!logistics) {
+            showWarning("Bitte einen Logistikbetrieb zum Handel auswählen.", "Logistik fehlt");
+            return;
+        }
+
+        if (!retail) {
+            showWarning("Bitte einen Ziel-Händler auswählen.", "Händler fehlt");
+            return;
+        }
+
+        const sawmillOwner = sawmill ? adminPartnerName(sawmill) : currentAdminSawmillProcessedWood.owner;
+        const sawmillLocation = sawmill ? adminPartnerLocation(sawmill) : currentAdminSawmillProcessedWood.location;
+
+        const params = new URLSearchParams({
+            sawmillOwner: sawmillOwner,
+            sawmillLocation: sawmillLocation,
+            logisticsToRetail: adminPartnerName(logistics),
+            retail: adminPartnerName(retail)
+        });
+
+        try {
+            const response = await fetch(
+                `/api/wood/${encodeURIComponent(currentAdminSawmillProcessedWood.id)}/process-with-retail-plan?` + params.toString(),
+                {
+                    method: "POST",
+                    headers: getAuthHeaders()
+                }
+            );
+
+            if (!response.ok) {
+                const text = await response.text();
+                showError("Versandplanung konnte nicht gespeichert werden. " + text, "Fehler");
+                return;
+            }
+
+            showSuccess("Versandplanung wurde gespeichert.", "Versand geplant");
+
+            currentAdminSawmillProcessedWood = null;
+
+            await loadGlobalLedger();
+            await loadAdminSawmillProcessedOrders();
+            await loadAdminLogisticsOrders();
+
+        } catch (error) {
+            console.error(error);
+            showError("Technischer Fehler bei der Versandplanung.", "Blockchain-Fehler");
+        }
+    }
+
+    async function loadAdminRetailOrders() {
+        const status = document.getElementById("adminRetailOrdersStatus");
+        const select = document.getElementById("adminRetailOrderSelect");
+
+        if (status) {
+            status.innerText = "Lieferungen werden geladen...";
+        }
+
+        if (select) {
+            select.innerHTML = `<option value="">Lieferungen werden geladen...</option>`;
+        }
+
+        try {
+            const assets = await fetchAdminLedgerAssets();
+
+            adminRetailOrders = assets.filter(wood => wood.status === "IN_TRANSPORT_TO_RETAIL");
+            filteredAdminRetailOrders = [...adminRetailOrders];
+
+            renderAdminRetailOrders();
+
+            if (status) {
+                status.innerText = adminRetailOrders.length === 0
+                    ? "Keine offenen Lieferungen gefunden."
+                    : `${adminRetailOrders.length} offene Lieferung(en) gefunden.`;
+            }
+
+        } catch (error) {
+            console.error(error);
+            showError("Lieferungen konnten nicht geladen werden.", "Ladefehler");
+        }
+    }
+
+    function filterAdminRetailOrders() {
+        const search = (document.getElementById("adminRetailSearch")?.value || "").trim().toLowerCase();
+
+        filteredAdminRetailOrders = !search
+            ? [...adminRetailOrders]
+            : adminRetailOrders.filter(wood => adminSearchMatch(wood, search));
+
+        renderAdminRetailOrders();
+    }
+
+    function renderAdminRetailOrders() {
+        const select = document.getElementById("adminRetailOrderSelect");
+
+        if (!select) {
+            return;
+        }
+
+        select.innerHTML = `<option value="">Lieferung auswählen...</option>`;
+
+        if (filteredAdminRetailOrders.length === 0) {
+            select.innerHTML = `<option value="">Keine passenden Lieferungen</option>`;
+            return;
+        }
+
+        filteredAdminRetailOrders.forEach(wood => {
+            const option = document.createElement("option");
+            option.value = wood.id;
+            option.textContent = `${wood.id} | ${wood.treeType || "-"} | Ziel-Händler: ${wood.retail || "-"}`;
+            select.appendChild(option);
+        });
+    }
+
+    function selectAdminRetailOrder() {
+        const select = document.getElementById("adminRetailOrderSelect");
+
+        if (!select || !select.value) {
+            return;
+        }
+
+        currentAdminRetailWood = adminRetailOrders.find(wood => wood.id === select.value) || null;
+    }
+
+    async function confirmAdminRetailSale() {
+        if (!currentAdminRetailWood) {
+            showWarning("Bitte zuerst eine Lieferung auswählen.", "Lieferung fehlt");
+            return;
+        }
+
+        const actor = getSelectedPartner("adminRetailActorSelect");
+
+        if (!actor) {
+            showWarning("Bitte einen Händler auswählen.", "Händler fehlt");
+            return;
+        }
+
+        const params = new URLSearchParams({
+            newOwner: adminPartnerName(actor),
+            newLocation: adminPartnerLocation(actor)
+        });
+
+        try {
+            const response = await fetch(
+                `/api/wood/${encodeURIComponent(currentAdminRetailWood.id)}/sell?` + params.toString(),
+                {
+                    method: "POST",
+                    headers: getAuthHeaders()
+                }
+            );
+
+            if (!response.ok) {
+                const text = await response.text();
+                showError("Lieferung konnte nicht abgeschlossen werden. " + text, "Fehler");
+                return;
+            }
+
+            showSuccess("Lieferung abgeschlossen. Status ist jetzt SOLD.", "Handel abgeschlossen");
+
+            currentAdminRetailWood = null;
+
+            await loadGlobalLedger();
+            await loadAdminRetailOrders();
+
+        } catch (error) {
+            console.error(error);
+            showError("Technischer Fehler beim Handelsabschluss.", "Blockchain-Fehler");
+        }
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>WoodChain - QR-Code Generator</title>
+    <link rel="stylesheet" href="css/base.css?v=1">
+    <link rel="stylesheet" href="css/components.css?v=1">
+    <link rel="stylesheet" href="css/login.css?v=1">
+    <link rel="stylesheet" href="css/qr.css?v=1">
+    <link rel="stylesheet" href="css/responsive.css?v=1">
+    <link rel="stylesheet" href="css/print.css?v=1">
+</head>
+<body>
+
+<header class="app-hero">
+  <div class="hero-glow hero-glow-one"></div>
+  <div class="hero-glow hero-glow-two"></div>
+
+  <div class="container hero-content">
+    <div class="hero-copy">
+      <div class="eyebrow">
+        <span class="eyebrow-dot"></span>
+        QR-Code Vorbereitung
+      </div>
+
+      <h1>🏷️ QR-Code Generator</h1>
+
+      <p>
+        Bereite QR-Codes für Holzchargen vor, speichere sie accountweise in der Datenbank
+        und drucke einzelne Etiketten für den späteren Scan im Förster-Arbeitsplatz.
+      </p>
+    </div>
+
+    <div class="hero-actions">
+      <button onclick="window.location.href='foerster.html'" class="btn-ghost">
+        🪓 Zum Förster
+      </button>
+
+      <button onclick="logout()" class="btn-ghost danger-outline">
+        Abmelden
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="container page-layout">
+
+  <section class="card card-highlight">
+    <div class="section-title">
+      <div>
+        <span class="section-kicker">Vorbereitung</span>
+        <h2>🌲 Neuen QR-Code erstellen</h2>
+        <p>
+          Der QR-Code speichert ID, Holzart und Volumen. Beim Scan werden diese Daten automatisch
+          in das Registrierungsformular eingefügt.
+        </p>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Holzart</label>
+        <input type="text" id="qrTreeType" placeholder="z.B. Eiche, Buche, Fichte">
+      </div>
+
+      <div class="form-group">
+        <label>Volumen (m³)</label>
+        <input type="number" step="0.1" id="qrVolume" placeholder="z.B. 12.5">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>ID-Präfix</label>
+        <input type="text" id="qrPrefix" value="WOOD">
+      </div>
+
+      <div class="form-group">
+        <label>Anzahl</label>
+        <input type="number" id="qrCount" value="1" min="1" max="20">
+      </div>
+    </div>
+
+    <button type="button" onclick="createPreparedQrCodes()" class="btn-submit">
+      🏷️ QR-Code speichern
+    </button>
+  </section>
+
+  <section class="card">
+    <div class="section-title">
+      <div>
+        <span class="section-kicker">Gespeichert</span>
+        <h2>📦 Gespeicherte QR-Codes</h2>
+        <p>
+          Klicke einen QR-Code an, um ihn groß zu öffnen. Du kannst jeden QR-Code einzeln drucken oder löschen.
+        </p>
+      </div>
+    </div>
+
+    <div class="qr-toolbar">
+      <input
+              type="text"
+              id="qrSearchInput"
+              placeholder="Suche nach ID, Holzart, Volumen oder Datum..."
+              oninput="applyQrSearch()"
+      >
+
+      <button type="button" onclick="clearAllPreparedQrCodes()" class="btn-action danger-btn">
+        Alle löschen
+      </button>
+    </div>
+
+    <div id="qrCodeGrid" class="qr-code-grid"></div>
+
+    <div id="qrPagination" class="qr-pagination"></div>
+  </section>
+
+</main>
+
+<div id="qrModal" class="qr-modal" style="display: none;">
+  <div class="qr-modal-backdrop" onclick="closeQrModal()"></div>
+
+  <div class="qr-modal-content">
+    <button class="qr-modal-close" onclick="closeQrModal()">×</button>
+
+    <div id="singleQrPrintArea" class="single-qr-print-area">
+      <h2 id="modalQrTitle">QR-Code</h2>
+
+      <div id="modalQrCode" class="modal-qr-code"></div>
+
+      <div class="modal-qr-details">
+        <p><strong>ID:</strong> <span id="modalQrId">-</span></p>
+        <p><strong>Holzart:</strong> <span id="modalQrTreeType">-</span></p>
+        <p><strong>Volumen:</strong> <span id="modalQrVolume">-</span></p>
+      </div>
+    </div>
+
+    <div class="qr-modal-actions">
+      <button type="button" onclick="printCurrentQrCode()" class="btn-action log-btn">
+        🖨️ Diesen QR-Code drucken
+      </button>
+
+      <button type="button" onclick="deleteCurrentQrCode()" class="btn-action danger-btn">
+        Löschen
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer" class="toast-container"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="js/core.js?v=1"></script>
+<script src="js/auth.js?v=1"></script>
+<script src="js/ledger.js?v=1"></script>
+<script src="js/partners.js?v=1"></script>
+<script src="js/qr-scanner.js?v=1"></script>
+<script src="js/tracking.js?v=1"></script>
+<script src="js/map.js?v=1"></script>
+<script src="js/logistik.js?v=1"></script>
+<script src="js/saegewerk.js?v=1"></script>
+<script src="js/handel.js?v=1"></script>
+<script src="js/admin-accounts.js?v=1"></script>
+<script>
+  checkAccess('FOERSTER');
+
+  let selectedQrDatabaseId = null;
+
+  let allQrCodes = [];
+  let filteredQrCodes = [];
+  let currentQrPage = 1;
+  const qrItemsPerPage = 12;
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    await loadAndRenderQrCodes();
+  });
+
+  function generatePreparedWoodId(prefix) {
+    const now = new Date();
+
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+
+    const random = Math.floor(Math.random() * 999999)
+            .toString()
+            .padStart(6, "0");
+
+    return `${prefix}-${year}${month}${day}-${random}`;
+  }
+
+  async function createPreparedQrCodes() {
+    const treeType = document.getElementById("qrTreeType").value.trim();
+    const volumeM3 = document.getElementById("qrVolume").value.trim();
+    const prefix = document.getElementById("qrPrefix").value.trim() || "WOOD";
+    const count = parseInt(document.getElementById("qrCount").value, 10);
+
+    if (!treeType || !volumeM3) {
+      showWarning("Bitte Holzart und Volumen eingeben.", "Eingaben fehlen");
+      return;
+    }
+
+    if (!count || count < 1 || count > 20) {
+      showWarning("Bitte eine Anzahl zwischen 1 und 20 eingeben.", "Ungültige Anzahl");
+      return;
+    }
+
+    try {
+      for (let i = 0; i < count; i++) {
+        const woodId = generatePreparedWoodId(prefix);
+
+        const response = await fetch("/api/qrcodes", {
+          method: "POST",
+          headers: getJsonAuthHeaders(),
+          body: JSON.stringify({
+            woodId: woodId,
+            treeType: treeType,
+            volumeM3: volumeM3
+          })
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          showError("QR-Code konnte nicht gespeichert werden. " + text, "Speichern fehlgeschlagen");
+          return;
+        }
+      }
+
+      document.getElementById("qrTreeType").value = "";
+      document.getElementById("qrVolume").value = "";
+      document.getElementById("qrCount").value = "1";
+
+      await loadAndRenderQrCodes();
+
+      showSuccess(`${count} QR-Code(s) wurden in der Datenbank gespeichert.`, "QR-Code gespeichert");
+
+    } catch (error) {
+      console.error("QR-Code Speicherfehler:", error);
+      showError("QR-Codes konnten technisch nicht gespeichert werden.", "Datenbankfehler");
+    }
+  }
+
+  async function loadPreparedQrCodesFromDatabase() {
+    const response = await fetch("/api/qrcodes", {
+      method: "GET",
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      showError("QR-Codes konnten nicht geladen werden. " + text, "Ladefehler");
+      return [];
+    }
+
+    return await response.json();
+  }
+
+  async function loadAndRenderQrCodes() {
+    allQrCodes = await loadPreparedQrCodesFromDatabase();
+    currentQrPage = 1;
+    applyQrSearch();
+  }
+
+  function applyQrSearch() {
+    const searchInput = document.getElementById("qrSearchInput");
+    const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : "";
+
+    if (!searchTerm) {
+      filteredQrCodes = [...allQrCodes];
+    } else {
+      filteredQrCodes = allQrCodes.filter(code => {
+        const text = [
+          code.id,
+          code.woodId,
+          code.treeType,
+          code.volumeM3,
+          code.createdAt
+        ]
+                .filter(value => value !== null && value !== undefined)
+                .join(" ")
+                .toLowerCase();
+
+        return text.includes(searchTerm);
+      });
+    }
+
+    currentQrPage = 1;
+    renderQrPage();
+  }
+
+  function renderQrPage() {
+    const grid = document.getElementById("qrCodeGrid");
+
+    if (!grid) {
+      return;
+    }
+
+    grid.innerHTML = "";
+
+    if (!filteredQrCodes || filteredQrCodes.length === 0) {
+      grid.innerHTML = `
+        <div class="empty-state">
+          <div>🏷️</div>
+          <h3>Keine QR-Codes gefunden</h3>
+          <p>Erstelle oben einen QR-Code oder ändere deine Suche.</p>
+        </div>
+      `;
+
+      renderQrPagination();
+      return;
+    }
+
+    const totalPages = Math.ceil(filteredQrCodes.length / qrItemsPerPage);
+
+    if (currentQrPage > totalPages) {
+      currentQrPage = totalPages;
+    }
+
+    const startIndex = (currentQrPage - 1) * qrItemsPerPage;
+    const endIndex = startIndex + qrItemsPerPage;
+
+    const pageItems = filteredQrCodes.slice(startIndex, endIndex);
+
+    pageItems.forEach(code => {
+      const card = document.createElement("div");
+      card.className = "qr-card saved-qr-card";
+      card.onclick = () => openQrModal(code.id);
+
+      const qrElementId = "qr-db-" + code.id;
+
+      card.innerHTML = `
+        <div class="saved-qr-header">
+          <h3>${code.woodId}</h3>
+          <span>${formatQrDate(code.createdAt)}</span>
+        </div>
+
+        <div id="${qrElementId}" class="qr-box"></div>
+
+        <div class="saved-qr-meta">
+          <p><strong>Holzart:</strong> ${code.treeType}</p>
+          <p><strong>Volumen:</strong> ${code.volumeM3} m³</p>
+        </div>
+
+        <div class="saved-qr-actions" onclick="event.stopPropagation()">
+          <button type="button" onclick="openQrModal(${code.id})" class="btn-action log-btn">
+            Öffnen
+          </button>
+
+          <button type="button" onclick="printQrCodeById(${code.id})" class="btn-action retail-btn">
+            Drucken
+          </button>
+
+          <button type="button" onclick="deletePreparedQrCode(${code.id})" class="btn-action danger-btn">
+            Löschen
+          </button>
+        </div>
+      `;
+
+      grid.appendChild(card);
+
+      createQrCodeInElement(qrElementId, code, 150);
+    });
+
+    renderQrPagination();
+  }
+
+  function renderQrPagination() {
+    const pagination = document.getElementById("qrPagination");
+
+    if (!pagination) {
+      return;
+    }
+
+    const totalItems = filteredQrCodes.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / qrItemsPerPage));
+
+    const startItem = totalItems === 0
+            ? 0
+            : (currentQrPage - 1) * qrItemsPerPage + 1;
+
+    const endItem = Math.min(currentQrPage * qrItemsPerPage, totalItems);
+
+    pagination.innerHTML = `
+      <div class="qr-pagination-info">
+        <strong>${startItem}-${endItem}</strong> von <strong>${totalItems}</strong> QR-Codes
+      </div>
+
+      <div class="qr-pagination-actions">
+        <button
+          type="button"
+          class="btn-action log-btn"
+          onclick="goToPreviousQrPage()"
+          ${currentQrPage <= 1 ? "disabled" : ""}
+        >
+          Zurück
+        </button>
+
+        <span>
+          Seite <strong>${currentQrPage}</strong> von <strong>${totalPages}</strong>
+        </span>
+
+        <button
+          type="button"
+          class="btn-action log-btn"
+          onclick="goToNextQrPage()"
+          ${currentQrPage >= totalPages ? "disabled" : ""}
+        >
+          Weiter
+        </button>
+      </div>
+    `;
+  }
+
+  function goToPreviousQrPage() {
+    if (currentQrPage > 1) {
+      currentQrPage--;
+      renderQrPage();
+    }
+  }
+
+  function goToNextQrPage() {
+    const totalPages = Math.ceil(filteredQrCodes.length / qrItemsPerPage);
+
+    if (currentQrPage < totalPages) {
+      currentQrPage++;
+      renderQrPage();
+    }
+  }
+
+  function createQrCodeInElement(elementId, code, size) {
+    const element = document.getElementById(elementId);
+
+    if (!element) {
+      return;
+    }
+
+    element.innerHTML = "";
+
+    const payload = JSON.stringify({
+      id: code.woodId,
+      treeType: code.treeType,
+      volumeM3: code.volumeM3
+    });
+
+    new QRCode(element, {
+      text: payload,
+      width: size,
+      height: size,
+      colorDark: "#000000",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.H
+    });
+  }
+
+  async function openQrModal(databaseId) {
+    const code = allQrCodes.find(item => item.id === databaseId);
+
+    if (!code) {
+      showError("QR-Code wurde nicht gefunden.", "Nicht gefunden");
+      return;
+    }
+
+    selectedQrDatabaseId = databaseId;
+
+    document.getElementById("modalQrTitle").innerText = "QR-Code für " + code.woodId;
+    document.getElementById("modalQrId").innerText = code.woodId;
+    document.getElementById("modalQrTreeType").innerText = code.treeType;
+    document.getElementById("modalQrVolume").innerText = code.volumeM3 + " m³";
+
+    const modalQrCode = document.getElementById("modalQrCode");
+    modalQrCode.innerHTML = "";
+
+    const payload = JSON.stringify({
+      id: code.woodId,
+      treeType: code.treeType,
+      volumeM3: code.volumeM3
+    });
+
+    new QRCode(modalQrCode, {
+      text: payload,
+      width: 280,
+      height: 280,
+      colorDark: "#000000",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.H
+    });
+
+    document.getElementById("qrModal").style.display = "flex";
+  }
+
+  function closeQrModal() {
+    document.getElementById("qrModal").style.display = "none";
+    selectedQrDatabaseId = null;
+  }
+
+  async function deletePreparedQrCode(databaseId) {
+    if (!confirm("Diesen QR-Code wirklich löschen?")) {
+      return;
+    }
+
+    const response = await fetch("/api/qrcodes/" + databaseId, {
+      method: "DELETE",
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      showError("QR-Code konnte nicht gelöscht werden. " + text, "Löschen fehlgeschlagen");
+      return;
+    }
+
+    if (selectedQrDatabaseId === databaseId) {
+      closeQrModal();
+    }
+
+    await loadAndRenderQrCodes();
+
+    showSuccess("QR-Code wurde gelöscht.", "Gelöscht");
+  }
+
+  async function deleteCurrentQrCode() {
+    if (!selectedQrDatabaseId) {
+      return;
+    }
+
+    await deletePreparedQrCode(selectedQrDatabaseId);
+  }
+
+  async function clearAllPreparedQrCodes() {
+    showWarning("Alle löschen ist bei Datenbank-Speicherung absichtlich deaktiviert. Lösche QR-Codes einzeln.", "Sicherheit");
+  }
+
+  async function printQrCodeById(databaseId) {
+    await openQrModal(databaseId);
+
+    setTimeout(() => {
+      window.print();
+    }, 300);
+  }
+
+  function printCurrentQrCode() {
+    if (!selectedQrDatabaseId) {
+      showWarning("Bitte zuerst einen QR-Code auswählen.", "Kein QR-Code ausgewählt");
+      return;
+    }
+
+    setTimeout(() => {
+      window.print();
+    }, 200);
+  }
+
+  function formatQrDate(value) {
+    if (!value) {
+      return "-";
+    }
+
+    const date = new Date(value);
+
+    if (isNaN(date.getTime())) {
+      return "-";
+    }
+
+    return date.toLocaleString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>WoodChain - Logistik Terminal</title>
+    <link rel="stylesheet" href="css/base.css?v=1">
+    <link rel="stylesheet" href="css/components.css?v=1">
+    <link rel="stylesheet" href="css/login.css?v=1">
+    <link rel="stylesheet" href="css/qr.css?v=1">
+    <link rel="stylesheet" href="css/responsive.css?v=1">
+    <link rel="stylesheet" href="css/print.css?v=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+</head>
+<body>
+
+<header class="app-hero">
+    <div class="hero-glow hero-glow-one"></div>
+    <div class="hero-glow hero-glow-two"></div>
+
+    <div class="container hero-content">
+        <div class="hero-copy">
+            <div class="eyebrow">
+                <span class="eyebrow-dot"></span>
+                WoodChain Logistics
+            </div>
+
+            <h1>🚚 Logistik-Terminal</h1>
+
+            <p>
+                Offene Transportaufträge einsehen, QR-Codes scannen und Transporte zwischen
+                Wald, Sägewerk und Handel manipulationssicher in der Blockchain bestätigen.
+            </p>
+
+            <div class="hero-badges">
+                <span>📦 Offene Aufträge</span>
+                <span>🏭 Transport zum Sägewerk</span>
+                <span>🏪 Transport zum Handel</span>
+                <span>🔗 Blockchain-Protokoll</span>
+            </div>
+        </div>
+
+        <div class="hero-actions">
+            <button onclick="logout()" class="btn-ghost danger-outline">
+                Abmelden
+            </button>
+        </div>
+    </div>
+</header>
+
+<main class="container page-layout">
+
+    <section class="stats-grid">
+        <div class="stat-card stat-green">
+            <span>📦</span>
+            <div>
+                <strong>Transportauftrag</strong>
+                <p>Offene Aufträge prüfen</p>
+            </div>
+        </div>
+
+        <div class="stat-card stat-blue">
+            <span>🚚</span>
+            <div>
+                <strong>Logistik</strong>
+                <p>Transport bestätigen</p>
+            </div>
+        </div>
+
+        <div class="stat-card stat-purple">
+            <span>🔗</span>
+            <div>
+                <strong>Blockchain</strong>
+                <p>Status sicher speichern</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="card card-highlight logistics-card">
+        <div class="section-title">
+            <div>
+                <span class="section-kicker">Transport</span>
+                <h2>🚚 Transportauftrag bearbeiten</h2>
+                <p>
+                    Wähle einen offenen Auftrag aus der Liste, suche nach einer Holz-ID oder scanne einen QR-Code.
+                    Die App erkennt automatisch, ob der Transport zum Sägewerk oder zum Handel geht.
+                </p>
+            </div>
+        </div>
+
+        <div class="admin-form-block">
+            <div class="admin-form-heading">
+                <span>1</span>
+                <div>
+                    <h3>Offene Aufträge auswählen</h3>
+                    <p>Hier erscheinen nur Aufträge, die für deinen Logistik-Account geplant sind.</p>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Offene Aufträge durchsuchen</label>
+                    <input
+                            type="text"
+                            id="logisticsOrderSearch"
+                            placeholder="Suche nach ID, Holzart, Ziel oder Status..."
+                            oninput="filterOpenLogisticsOrders()"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>Offenen Auftrag auswählen</label>
+                    <select id="openLogisticsOrdersSelect" onchange="selectOpenLogisticsOrder()">
+                        <option value="">Offene Aufträge werden geladen...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="scanner-actions">
+                <button type="button" onclick="loadOpenLogisticsOrders()" class="btn-action log-btn">
+                    🔄 Aufträge aktualisieren
+                </button>
+            </div>
+
+            <p id="openLogisticsOrdersStatus" class="scanner-status">Offene Aufträge werden geladen...</p>
+        </div>
+
+        <div class="admin-form-block">
+            <div class="admin-form-heading">
+                <span>2</span>
+                <div>
+                    <h3>Auftrag per ID oder QR prüfen</h3>
+                    <p>Du kannst auch manuell eine Holz-ID eingeben oder einen QR-Code scannen.</p>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>NFC / Barcode / QR-ID</label>
+                <input type="text" id="logId" placeholder="z.B. WOOD-20260613-000001">
+            </div>
+
+            <div class="scanner-actions">
+                <button type="button" onclick="startQrCameraScanner()" class="btn-action retail-btn">
+                    📷 QR-Code scannen
+                </button>
+
+                <button type="button" onclick="stopQrCameraScanner()" class="btn-action danger-btn">
+                    Scanner stoppen
+                </button>
+
+                <button type="button" onclick="loadLogisticsTransportPreview()" class="btn-action log-btn">
+                    Auftrag prüfen
+                </button>
+            </div>
+
+            <p id="qrScannerStatus" class="scanner-status">Scanner bereit.</p>
+
+            <video id="qrScannerVideo" class="scanner-video" muted playsinline></video>
+            <canvas id="qrScannerCanvas" style="display: none;"></canvas>
+        </div>
+
+        <div id="logisticsPreviewBox" class="logistics-preview-box" style="display: none;">
+            <div class="admin-form-heading">
+                <span>3</span>
+                <div>
+                    <h3>Transportauftrag erkannt</h3>
+                    <p id="logisticsPreviewSubtitle">Blockchain-Daten wurden geladen.</p>
+                </div>
+            </div>
+
+            <div class="logistics-preview-grid">
+                <div class="partner-preview-box">
+                    <strong>🪵 Holzcharge</strong>
+                    <p id="logisticsWoodPreview">-</p>
+                </div>
+
+                <div class="partner-preview-box">
+                    <strong>📌 Aktueller Status</strong>
+                    <p id="logisticsStatusPreview">-</p>
+                </div>
+
+                <div class="partner-preview-box">
+                    <strong>🚚 Geplanter Logistikbetrieb</strong>
+                    <p id="logisticsPlannedPreview">-</p>
+                </div>
+
+                <div class="partner-preview-box">
+                    <strong>🎯 Ziel</strong>
+                    <p id="logisticsTargetPreview">-</p>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" onclick="executeLogisticsTransport()" class="btn-submit logistics-submit">
+            🚚 Transport in Blockchain bestätigen
+        </button>
+    </section>
+
+    <section class="card ledger-card">
+        <div class="section-title">
+            <div>
+                <span class="section-kicker">Ledger</span>
+                <h2>🔗 Globaler Lieferketten-Ledger</h2>
+                <p>Alle Holzobjekte, die aktuell im Hyperledger Fabric Ledger gespeichert sind.</p>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table id="assetTable">
+                <thead>
+                <tr>
+                    <th>NFC ID</th>
+                    <th>Holzart</th>
+                    <th>Volumen</th>
+                    <th>Aktueller Besitzer</th>
+                    <th>Status</th>
+                    <th>Blockchain-Zeitstempel</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card trace-card">
+        <div class="section-title">
+            <div>
+                <span class="section-kicker">Rückverfolgung</span>
+                <h2>🔍 Holzcharge prüfen</h2>
+                <p>Prüfe ein Holzobjekt per ID oder QR-Code und zeige den aktuellen Blockchain-Zustand.</p>
+            </div>
+        </div>
+
+        <div class="form-row trace-search-row">
+            <input type="text" id="searchLogId" placeholder="NFC / Stamm-ID eingeben oder QR-Code scannen, z.B. WOOD001">
+
+            <button onclick="trackWoodHistory()" class="btn-action log-btn trace-search-btn">
+                Holz prüfen
+            </button>
+        </div>
+
+        <div class="scanner-actions">
+            <button type="button" onclick="startTraceQrCameraScanner()" class="btn-action retail-btn">
+                📷 QR für Rückverfolgung scannen
+            </button>
+
+            <button type="button" onclick="stopTraceQrCameraScanner()" class="btn-action danger-btn">
+                Rückverfolgungs-Scanner stoppen
+            </button>
+        </div>
+
+        <p id="traceQrScannerStatus" class="scanner-status">Rückverfolgungs-Scanner bereit.</p>
+
+        <video id="traceQrScannerVideo" class="scanner-video" muted playsinline></video>
+        <canvas id="traceQrScannerCanvas" style="display: none;"></canvas>
+
+        <div id="timelineContainer" class="timeline-container" style="display: none;">
+            <h3>Aktueller Blockchain-Zustand</h3>
+            <ul id="timelineList" class="timeline-list"></ul>
+        </div>
+
+        <div id="mapContainer" class="map-container" style="display: none;">
+            <h3>🗺️ Standort- und Lieferkettenkarte</h3>
+            <p class="scanner-status">
+                Die Karte zeigt den bisherigen Weg der Holzcharge anhand des aktuellen Blockchain-Status.
+            </p>
+
+            <div id="woodMap"></div>
+        </div>
+    </section>
+
+</main>
+
+<div id="toastContainer" class="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="js/core.js?v=1"></script>
+<script src="js/auth.js?v=1"></script>
+<script src="js/ledger.js?v=1"></script>
+<script src="js/partners.js?v=1"></script>
+<script src="js/qr-scanner.js?v=1"></script>
+<script src="js/tracking.js?v=1"></script>
+<script src="js/map.js?v=1"></script>
+<script src="js/logistik.js?v=1"></script>
+<script src="js/saegewerk.js?v=1"></script>
+<script src="js/handel.js?v=1"></script>
+<script src="js/admin-accounts.js?v=1"></script>
+<script>
+    checkAccess('LOGISTIK');
+
+    document.addEventListener("DOMContentLoaded", async () => {
+        await loadGlobalLedger();
+        await loadOpenLogisticsOrders();
+    });
+
+    const logisticsInput = document.getElementById("logId");
+
+    if (logisticsInput) {
+        logisticsInput.addEventListener("change", loadLogisticsTransportPreview);
+        logisticsInput.addEventListener("blur", loadLogisticsTransportPreview);
+    }
+</script>
+
+</body>
+</html>

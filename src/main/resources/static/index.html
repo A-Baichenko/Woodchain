@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>WoodChain - Login</title>
+
+    <!-- Allgemeine und seitenspezifische Stylesheets -->
+    <link rel="stylesheet" href="css/base.css?v=1">
+    <link rel="stylesheet" href="css/components.css?v=1">
+    <link rel="stylesheet" href="css/login.css?v=1">
+    <link rel="stylesheet" href="css/responsive.css?v=1">
+</head>
+
+<body class="login-body">
+
+<!-- Dekorativer Hintergrund der Loginseite -->
+<div class="login-background">
+    <div class="login-orb login-orb-green"></div>
+    <div class="login-orb login-orb-blue"></div>
+    <div class="login-orb login-orb-purple"></div>
+</div>
+
+<!-- Hauptbereich der Loginseite -->
+<main class="login-shell">
+
+    <!-- Beschreibung und Logo von WoodChain -->
+    <section class="login-brand-panel">
+        <div class="login-brand-badge">
+            <span class="eyebrow-dot"></span>
+            Hyperledger Fabric Supply Chain
+        </div>
+
+        <h1>🌲 WoodChain</h1>
+
+        <p>
+            Digitale Holzrückverfolgung vom Wald bis zum Handel.
+            Sicher, transparent und manipulationsgeschützt über Blockchain-Technologie.
+        </p>
+    </section>
+
+    <!-- Anmeldeformular -->
+    <section class="login-card">
+        <div class="login-card-header">
+            <div class="login-logo">🌲</div>
+
+            <div>
+                <h2>Willkommen zurück</h2>
+                <p>Melde dich an, um WoodChain zu verwenden.</p>
+            </div>
+        </div>
+
+        <form id="loginForm" class="login-form">
+
+            <!-- Eingabe des Benutzernamens -->
+            <div class="form-group">
+                <label for="username">Benutzername</label>
+
+                <div class="input-icon-wrap">
+                    <span>👤</span>
+
+                    <input
+                            type="text"
+                            id="username"
+                            name="username"
+                            placeholder="z. B. Andreas"
+                            autocomplete="username"
+                            required
+                    >
+                </div>
+            </div>
+
+            <!-- Eingabe des Passwortes -->
+            <div class="form-group">
+                <label for="password">Passwort</label>
+
+                <div class="input-icon-wrap">
+                    <span>🔑</span>
+
+                    <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Passwort eingeben"
+                            autocomplete="current-password"
+                            required
+                    >
+                </div>
+            </div>
+
+            <!-- Startet die Anmeldung -->
+            <button type="submit" class="btn-submit login-submit">
+                Einloggen
+            </button>
+        </form>
+    </section>
+
+</main>
+
+<!-- Hier werden Erfolgs- und Fehlermeldungen angezeigt -->
+<div id="toastContainer" class="toast-container"></div>
+
+<!-- Auf der Loginseite werden nur diese beiden Dateien benötigt -->
+<script src="js/core.js?v=1"></script>
+<script src="js/auth.js?v=1"></script>
+
+<script>
+    /*
+     * Verhindert das normale Absenden des Formulars und führt
+     * stattdessen die Anmeldung über JavaScript aus.
+     */
+    document.getElementById("loginForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await performLogin();
+    });
+</script>
+
+</body>
+</html>

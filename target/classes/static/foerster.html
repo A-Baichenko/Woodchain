@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>WoodChain - Förster Arbeitsplatz</title>
+    <link rel="stylesheet" href="css/base.css?v=1">
+    <link rel="stylesheet" href="css/components.css?v=1">
+    <link rel="stylesheet" href="css/login.css?v=1">
+    <link rel="stylesheet" href="css/qr.css?v=1">
+    <link rel="stylesheet" href="css/responsive.css?v=1">
+    <link rel="stylesheet" href="css/print.css?v=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+</head>
+<body>
+
+<header class="app-hero">
+    <div class="hero-glow hero-glow-one"></div>
+    <div class="hero-glow hero-glow-two"></div>
+
+    <div class="container hero-content">
+        <div class="hero-copy">
+            <div class="eyebrow">
+                <span class="eyebrow-dot"></span>
+                Hyperledger Fabric Supply Chain
+            </div>
+
+            <h1>🪓 Förster-Arbeitsplatz</h1>
+
+            <p>
+                Holzchargen digital registrieren, Logistik und Ziel-Sägewerk auswählen
+                und die Lieferkette transparent über Hyperledger Fabric nachverfolgen.
+            </p>
+
+            <div class="hero-badges">
+                <span>🔐 Manipulationssicher</span>
+                <span>🌲 Holzherkunft</span>
+                <span>🚚 Logistikplanung</span>
+                <span>🏭 Ziel-Sägewerk</span>
+            </div>
+        </div>
+
+        <div class="hero-actions">
+            <button onclick="window.location.href='qrcodes.html'" class="btn-ghost">
+                🏷️ QR-Codes vorbereiten
+            </button>
+
+            <button onclick="logout()" class="btn-ghost danger-outline">
+                Abmelden
+            </button>
+        </div>
+    </div>
+</header>
+
+<main class="container page-layout">
+
+    <section class="stats-grid">
+        <div class="stat-card stat-green">
+            <span>🌲</span>
+            <div>
+                <strong>Registrierung</strong>
+                <p>Neue Holzcharge anlegen</p>
+            </div>
+        </div>
+
+        <div class="stat-card stat-blue">
+            <span>🚚</span>
+            <div>
+                <strong>Transportplanung</strong>
+                <p>Logistik zum Sägewerk wählen</p>
+            </div>
+        </div>
+
+        <div class="stat-card stat-purple">
+            <span>🏭</span>
+            <div>
+                <strong>Ziel-Sägewerk</strong>
+                <p>Verarbeitungsbetrieb festlegen</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="card card-highlight">
+        <div class="section-title">
+            <div>
+                <span class="section-kicker">Schritt 1</span>
+                <h2>🌲 Neue Holzcharge registrieren</h2>
+                <p>
+                    Erstelle eine Holzcharge und plane direkt den ersten Lieferkettenabschnitt:
+                    Transportdienstleister und Ziel-Sägewerk.
+                </p>
+            </div>
+        </div>
+
+        <form id="woodForm">
+
+            <div class="form-group">
+                <label>NFC / Barcode / QR-ID</label>
+                <input type="text" id="logId" placeholder="z.B. WOOD-20260611-0001" required>
+
+                <div class="scanner-actions">
+                    <button type="button" onclick="fillGeneratedWoodId('logId')" class="btn-action log-btn">
+                        ✨ ID automatisch erstellen
+                    </button>
+
+                    <button type="button" onclick="showQrCodeForInput('logId')" class="btn-action log-btn">
+                        🏷️ QR aus Formularwerten
+                    </button>
+
+                    <button type="button" onclick="startQrCameraScanner()" class="btn-action retail-btn">
+                        📷 Kamera-Scanner starten
+                    </button>
+
+                    <button type="button" onclick="stopQrCameraScanner()" class="btn-action danger-btn">
+                        Scanner stoppen
+                    </button>
+                </div>
+
+                <p id="qrScannerStatus" class="scanner-status">Scanner bereit.</p>
+
+                <video id="qrScannerVideo" class="scanner-video" muted playsinline></video>
+                <canvas id="qrScannerCanvas" style="display: none;"></canvas>
+
+                <div id="qrPreviewBox" class="qr-preview-box" style="display: none;">
+                    <p><strong>Erzeugter QR-Code für diese Holzcharge:</strong></p>
+                    <div id="woodQrCode" class="qr-preview-code"></div>
+                    <p id="woodQrText" class="scanner-status"></p>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Holzart</label>
+                    <input type="text" id="woodType" placeholder="z.B. Eiche, Buche, Fichte" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Volumen (m³)</label>
+                    <input type="number" step="0.1" id="volume" placeholder="z.B. 12.5" required>
+                </div>
+            </div>
+
+            <div class="admin-form-block">
+                <div class="admin-form-heading">
+                    <span>2</span>
+                    <div>
+                        <h3>Lieferkette planen</h3>
+                        <p>Wähle den Transportdienstleister und das Ziel-Sägewerk für diese Holzcharge.</p>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Logistikbetrieb zum Sägewerk</label>
+                        <select id="logisticsToSawmillSelect" required>
+                            <option value="">Logistikbetrieb wird geladen...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ziel-Sägewerk</label>
+                        <select id="sawmillSelect" required>
+                            <option value="">Sägewerke werden geladen...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="partner-preview-grid">
+                    <div class="partner-preview-box">
+                        <strong>🚚 Ausgewählte Logistik</strong>
+                        <p id="logisticsToSawmillPreview">Noch nicht ausgewählt.</p>
+                    </div>
+
+                    <div class="partner-preview-box">
+                        <strong>🏭 Ausgewähltes Sägewerk</strong>
+                        <p id="sawmillPreview">Noch nicht ausgewählt.</p>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit">
+                🔐 In Blockchain sichern
+            </button>
+
+        </form>
+    </section>
+
+    <section class="card ledger-card">
+        <div class="section-title">
+            <div>
+                <span class="section-kicker">Ledger</span>
+                <h2>🔗 Globaler Lieferketten-Ledger</h2>
+                <p>Alle Holzobjekte, die aktuell im Hyperledger Fabric Ledger gespeichert sind.</p>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table id="assetTable">
+                <thead>
+                <tr>
+                    <th>NFC ID</th>
+                    <th>Holzart</th>
+                    <th>Volumen</th>
+                    <th>Aktueller Besitzer</th>
+                    <th>Status</th>
+                    <th>Blockchain-Zeitstempel</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card trace-card">
+        <div class="section-title">
+            <div>
+                <span class="section-kicker">Rückverfolgung</span>
+                <h2>🔍 Holzcharge prüfen</h2>
+                <p>Prüfe ein Holzobjekt per ID oder QR-Code und zeige den aktuellen Blockchain-Zustand.</p>
+            </div>
+        </div>
+
+        <div class="form-row trace-search-row">
+            <input type="text" id="searchLogId" placeholder="NFC / Stamm-ID eingeben oder QR-Code scannen, z.B. WOOD001">
+
+            <button onclick="trackWoodHistory()" class="btn-action log-btn trace-search-btn">
+                Holz prüfen
+            </button>
+        </div>
+
+        <div class="scanner-actions">
+            <button type="button" onclick="startTraceQrCameraScanner()" class="btn-action retail-btn">
+                📷 QR für Rückverfolgung scannen
+            </button>
+
+            <button type="button" onclick="stopTraceQrCameraScanner()" class="btn-action danger-btn">
+                Rückverfolgungs-Scanner stoppen
+            </button>
+        </div>
+
+        <p id="traceQrScannerStatus" class="scanner-status">Rückverfolgungs-Scanner bereit.</p>
+
+        <video id="traceQrScannerVideo" class="scanner-video" muted playsinline></video>
+        <canvas id="traceQrScannerCanvas" style="display: none;"></canvas>
+
+        <div id="timelineContainer" class="timeline-container" style="display: none;">
+            <h3>Aktueller Blockchain-Zustand</h3>
+            <ul id="timelineList" class="timeline-list"></ul>
+        </div>
+
+        <div id="mapContainer" class="map-container" style="display: none;">
+            <h3>🗺️ Standort- und Lieferkettenkarte</h3>
+            <p class="scanner-status">
+                Die Karte zeigt den bisherigen Weg der Holzcharge anhand des aktuellen Blockchain-Status.
+            </p>
+
+            <div id="woodMap"></div>
+        </div>
+    </section>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="js/core.js?v=1"></script>
+<script src="js/auth.js?v=1"></script>
+<script src="js/ledger.js?v=1"></script>
+<script src="js/partners.js?v=1"></script>
+<script src="js/qr-scanner.js?v=1"></script>
+<script src="js/tracking.js?v=1"></script>
+<script src="js/map.js?v=1"></script>
+<script src="js/logistik.js?v=1"></script>
+<script src="js/saegewerk.js?v=1"></script>
+<script src="js/handel.js?v=1"></script>
+<script src="js/admin-accounts.js?v=1"></script>
+<script>
+    checkAccess('FOERSTER');
+
+    document.addEventListener("DOMContentLoaded", async () => {
+        await loadGlobalLedger();
+
+        await loadUsersByRoleIntoSelect(
+            "LOGISTIK",
+            "logisticsToSawmillSelect",
+            "Logistikbetrieb auswählen"
+        );
+
+        await loadUsersByRoleIntoSelect(
+            "SAEGEWERK",
+            "sawmillSelect",
+            "Sägewerk auswählen"
+        );
+
+        setupPartnerPreview(
+            "logisticsToSawmillSelect",
+            "logisticsToSawmillPreview"
+        );
+
+        setupPartnerPreview(
+            "sawmillSelect",
+            "sawmillPreview"
+        );
+    });
+
+    document.getElementById("woodForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const created = await createWoodWithPlanFromForm({
+            id: "logId",
+            treeType: "woodType",
+            volumeM3: "volume",
+            origin: "AUTO_FROM_ACCOUNT",
+            logisticsSelectId: "logisticsToSawmillSelect",
+            sawmillSelectId: "sawmillSelect"
+        });
+
+        if (!created) {
+            return;
+        }
+
+        document.getElementById("woodForm").reset();
+
+        const qrPreviewBox = document.getElementById("qrPreviewBox");
+        const woodQrCode = document.getElementById("woodQrCode");
+        const woodQrText = document.getElementById("woodQrText");
+
+        if (qrPreviewBox) {
+            qrPreviewBox.style.display = "none";
+        }
+
+        if (woodQrCode) {
+            woodQrCode.innerHTML = "";
+        }
+
+        if (woodQrText) {
+            woodQrText.innerText = "";
+        }
+
+        setupPartnerPreview(
+            "logisticsToSawmillSelect",
+            "logisticsToSawmillPreview"
+        );
+
+        setupPartnerPreview(
+            "sawmillSelect",
+            "sawmillPreview"
+        );
+    });
+</script>
+
+<div id="toastContainer" class="toast-container"></div>
+
+</body>
+</html>
