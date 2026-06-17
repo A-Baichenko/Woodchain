@@ -1,9 +1,0 @@
-/home/andre/WoodChain/src/main/java/Assigment/Application.java
-/home/andre/WoodChain/src/main/java/Assigment/bitcoin/FabricGatewayService.java
-/home/andre/WoodChain/src/main/java/Assigment/bitcoin/FilesUtil.java
-/home/andre/WoodChain/src/main/java/Assigment/controller/AuthController.java
-/home/andre/WoodChain/src/main/java/Assigment/controller/LocationController.java
-/home/andre/WoodChain/src/main/java/Assigment/controller/WoodBlockChainController.java
-/home/andre/WoodChain/src/main/java/Assigment/model/User.java
-/home/andre/WoodChain/src/main/java/Assigment/repository/UserRepository.java
-/home/andre/WoodChain/src/main/java/Assigment/service/AuthService.java
