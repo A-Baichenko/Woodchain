@@ -17,7 +17,7 @@ services:
       FABRIC_PEER_OVERRIDE_AUTH: peer0.org1.example.com
       TZ: Europe/Berlin
     volumes:
-      - /home/andre/hyperledger/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com:/fabric/org1.example.com:ro
+      - ${HOME}/hyperledger/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com:/fabric/org1.example.com:ro
     networks:
       - default
       - fabric_test
