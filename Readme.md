@@ -1,604 +1,574 @@
-# WoodChain: Blockchain ansehen und verstehen
+# WoodChain
 
-Diese Anleitung zeigt, wie die Hyperledger-Fabric-Blockchain von WoodChain abgerufen und gelesen wird. Als Beispiel dient ein exportierter Block mit einer `CreateWoodWithPlan`-Transaktion.
+WoodChain ist eine Webanwendung zur Rückverfolgung von Holz entlang der Lieferkette.  
+Die Anwendung verwendet **Spring Boot**, **MySQL**, **Docker** und **Hyperledger Fabric**.
 
-## Installation und GitHub-Upload
+> Diese Anleitung beginnt bei einem neuen Windows-PC. Führe alle Schritte in der angegebenen Reihenfolge aus.
 
-### Projekt sicher auf GitHub hochladen
+---
 
-Vor dem Hochladen pruefen, dass keine Passwoerter, privaten Schluessel, lokal erzeugten Fabric-Zertifikate oder Build-Dateien auf GitHub landen.
+# Installation auf einem neuen PC
 
-Im Hauptordner von WoodChain sollte deshalb eine `.gitignore` mit mindestens folgendem Inhalt liegen:
+## 1. Voraussetzungen
 
-```gitignore
-# Java und Maven
-target/
-*.class
-*.jar
+Benötigt werden:
 
-# IntelliJ IDEA
-.idea/
-*.iml
+- Windows 10 oder Windows 11 (64 Bit)
+- aktivierte Virtualisierung im BIOS/UEFI
+- Internetverbindung
+- GitHub-Zugriff auf das Repository
+- mindestens 8 GB RAM, empfohlen sind 16 GB RAM
+- ungefähr 15 GB freier Speicherplatz
 
-# Lokale Einstellungen und Geheimnisse
-.env
-.env.*
-!.env.example
-*.log
+## 2. WSL und Ubuntu installieren
 
-# Betriebssystem
-.DS_Store
-Thumbs.db
+PowerShell **als Administrator** öffnen und ausführen:
 
-# Exportierte Blockchain-Daten
-blockchain-bloecke/
-*.block
-newest-block.json
-
-# Lokal von Fabric erzeugte Netzwerkdaten
-organizations/
-channel-artifacts/
-system-genesis-block/
+```powershell
+wsl --install -d Ubuntu
 ```
 
-Wichtig: Der eigene WoodChain-Chaincode muss hochgeladen werden. Nur automatisch erzeugte Zertifikate, Schluessel, Bloecke und Build-Dateien werden ausgeschlossen.
+Danach Windows neu starten.
 
-### Repository bei GitHub erstellen
+Ubuntu über das Startmenü öffnen. Beim ersten Start einen Linux-Benutzernamen und ein Passwort festlegen. Bei der Eingabe des Passworts werden keine Zeichen angezeigt – das ist normal.
 
-1. Bei GitHub anmelden.
-2. Oben rechts auf `+` und danach auf `New repository` klicken.
-3. Als Namen zum Beispiel `WoodChain` eintragen.
-4. `Public` oder `Private` auswaehlen.
-5. Keine zusaetzliche README und keine `.gitignore` durch GitHub erzeugen lassen.
-6. Auf `Create repository` klicken.
+Anschließend WSL aktualisieren. Dafür erneut PowerShell öffnen:
 
-### Lokales Projekt hochladen
+```powershell
+wsl --update
+wsl --set-default-version 2
+```
 
-Im Terminal in den Hauptordner des Projekts wechseln:
+Mit diesem Befehl kann geprüft werden, ob Ubuntu WSL 2 verwendet:
+
+```powershell
+wsl -l -v
+```
+
+Bei Ubuntu muss unter `VERSION` die Zahl `2` stehen.
+
+## 3. Docker Desktop installieren
+
+PowerShell öffnen und Docker Desktop installieren:
+
+```powershell
+winget install -e --id Docker.DockerDesktop
+```
+
+Danach Docker Desktop starten und warten, bis die Docker Engine vollständig läuft.
+
+In Docker Desktop folgende Einstellungen aktivieren:
+
+1. **Settings → General → Use the WSL 2 based engine**
+2. **Settings → Resources → WSL Integration**
+3. Die Integration für **Ubuntu** einschalten
+4. **Apply & restart** anklicken
+
+> Docker nicht zusätzlich mit `apt install docker.io` in Ubuntu installieren. Das kann dazu führen, dass zwei getrennte Docker-Engines verwendet werden und Container nicht in Docker Desktop erscheinen.
+
+## 4. Docker in Ubuntu prüfen
+
+Ubuntu öffnen und ausführen:
 
 ```bash
-cd ~/WoodChain
+unset DOCKER_HOST
+docker context use default
+docker version
+docker compose version
+docker info --format '{{.Name}}'
 ```
 
-Danach das lokale Repository vorbereiten:
+Die Befehle müssen ohne Fehlermeldung funktionieren. Bei Verwendung von Docker Desktop wird beim letzten Befehl normalerweise `docker-desktop` angezeigt.
+
+Der Kontext `desktop-linux` darf in Ubuntu nicht manuell ausgewählt werden. In WSL wird der Kontext `default` verwendet.
+
+## 5. Benötigte Programme in Ubuntu installieren
 
 ```bash
-git init
-git branch -M main
-git add .
-git status
-git commit -m "WoodChain-Projekt hinzugefuegt"
+sudo apt update
+sudo apt upgrade -y
+sudo apt install -y git curl jq
 ```
 
-Bei `git status` unbedingt kontrollieren, dass keine `.env`-Datei, privaten Schluessel oder Fabric-Zertifikate aufgelistet werden.
-
-Nun das Projekt mit dem zuvor erstellten GitHub-Repository verbinden. `DEIN-BENUTZERNAME` muss ersetzt werden:
-
-```bash
-git remote add origin https://github.com/DEIN-BENUTZERNAME/WoodChain.git
-git push -u origin main
-```
-
-Falls GitHub nach einem Passwort fragt, wird statt des normalen GitHub-Passworts ein Personal Access Token verwendet. Einfacher geht es mit GitHub Desktop oder einer Anmeldung ueber den Browser.
-
-### Spaetere Aenderungen hochladen
-
-```bash
-cd ~/WoodChain
-git add .
-git commit -m "Projekt aktualisiert"
-git push
-```
-
-### WoodChain auf einem anderen PC starten
-
-Auf dem neuen PC werden benoetigt:
-
-- Git
-- Docker Desktop unter Windows oder Docker Engine unter Linux
-- unter Windows: WSL 2 mit Ubuntu
-- mindestens etwa 10 GB freier Speicherplatz
-
-Docker Desktop muss gestartet sein. Unter Windows sollten die folgenden Befehle im Ubuntu-Terminal von WSL ausgefuehrt werden.
-
-Installation pruefen:
+Versionen prüfen:
 
 ```bash
 git --version
-docker --version
-docker compose version
+curl --version
+jq --version
 ```
 
-Projekt herunterladen:
+## 6. WoodChain von GitHub herunterladen
+
+In Ubuntu ausführen:
 
 ```bash
 cd ~
-git clone https://github.com/DEIN-BENUTZERNAME/WoodChain.git
-cd WoodChain
+git clone https://github.com/A-Baichenko/Woodchain.git
+cd ~/Woodchain
 ```
 
-Eine echte `.env`-Datei wird aus Sicherheitsgruenden nicht hochgeladen. Falls im Projekt eine `.env.example` vorhanden ist, wird daraus die lokale Konfiguration erstellt:
+Projektinhalt prüfen:
 
 ```bash
-cp .env.example .env
+ls -la
 ```
 
-Danach die Werte in `.env` pruefen und bei Bedarf anpassen. Eine `.env.example` darf nur Beispielwerte und keine echten Passwoerter enthalten.
-
-Wenn das Repository die vollstaendige Docker-Compose-Konfiguration fuer Anwendung, Datenbank und Hyperledger Fabric enthaelt, reicht im Projektordner:
+Wurde das Repository bereits heruntergeladen, werden spätere Änderungen so geladen:
 
 ```bash
+cd ~/Woodchain
+git pull origin main
+```
+
+## 7. Hyperledger Fabric herunterladen
+
+Die Fabric-Dateien werden direkt innerhalb des WoodChain-Projektordners installiert:
+
+```bash
+cd ~/Woodchain
+curl -sSLO https://raw.githubusercontent.com/hyperledger/fabric/main/scripts/install-fabric.sh
+chmod +x install-fabric.sh
+./install-fabric.sh docker samples binary
+```
+
+Danach müssen unter anderem diese Ordner vorhanden sein:
+
+```text
+~/Woodchain/fabric-samples
+~/Woodchain/fabric-samples/bin
+~/Woodchain/fabric-samples/test-network
+~/Woodchain/chaincode/woodchain
+```
+
+Prüfen:
+
+```bash
+ls ~/Woodchain/fabric-samples/test-network
+ls ~/Woodchain/chaincode/woodchain
+```
+
+## 8. Fabric-Binärdateien zum PATH hinzufügen
+
+```bash
+echo 'export PATH="$HOME/Woodchain/fabric-samples/bin:$PATH"' >> ~/.bashrc
+echo 'export FABRIC_CFG_PATH="$HOME/Woodchain/fabric-samples/config"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Prüfen:
+
+```bash
+peer version
+```
+
+## 9. Hyperledger-Netzwerk starten
+
+```bash
+cd ~/Woodchain/fabric-samples/test-network
+./network.sh down
+./network.sh up createChannel -c mychannel -ca
+```
+
+Dadurch werden unter anderem folgende Bestandteile gestartet:
+
+- zwei Peer-Knoten
+- ein Orderer
+- die Certificate Authorities
+- der Channel `mychannel`
+
+Laufende Fabric-Container anzeigen:
+
+```bash
+docker ps
+```
+
+## 10. WoodChain-Chaincode installieren
+
+Der eigene Java-Chaincode befindet sich im Repository unter `chaincode/woodchain`.
+
+```bash
+cd ~/Woodchain/fabric-samples/test-network
+./network.sh deployCC \
+  -ccn woodchain \
+  -ccp ../../chaincode/woodchain \
+  -ccl java \
+  -ccv 1.0 \
+  -ccs 1
+```
+
+Wichtig:
+
+- Channel: `mychannel`
+- Chaincode-Name: `woodchain`
+- Chaincode-Sprache: Java
+- Version: `1.0`
+
+Die Installation kann beim ersten Mal mehrere Minuten dauern.
+
+## 11. Webanwendung und Datenbank starten
+
+Zurück in den Projektordner wechseln und Docker Compose starten:
+
+```bash
+cd ~/Woodchain
 docker compose up --build -d
 ```
 
-Laufende Container anzeigen:
+Status prüfen:
 
 ```bash
 docker compose ps
+docker ps
 ```
 
-Protokolle anzeigen:
+Logs der Anwendung anzeigen:
 
 ```bash
-docker compose logs -f
+docker compose logs -f woodchain_app
 ```
 
-Die Anwendung ist anschliessend normalerweise unter folgender Adresse erreichbar:
+Die Logansicht wird mit `Strg + C` verlassen. Der Container läuft dabei weiter.
+
+> Falls der Service in der Compose-Datei anders heißt, zuerst `docker compose config --services` ausführen und den angezeigten Namen verwenden.
+
+## 12. Anwendung öffnen
+
+Im Browser öffnen:
 
 ```text
 http://localhost:8080
 ```
 
-Falls in der `.env`-Datei ein anderer Port eingestellt ist, muss dieser statt `8080` verwendet werden.
-
-Projekt stoppen:
-
-```bash
-docker compose down
-```
-
-Anwendung nach Aenderungen neu bauen und starten:
-
-```bash
-docker compose down
-docker compose up --build -d
-```
-
-Komplett neu starten:
-
-```bash
-docker compose down -v
-docker compose up --build -d
-```
-
-Dieser Schritt entfernt auch lokale Docker-Volumes. Dadurch werden Datenbank- und Blockchain-Daten geloescht und beim naechsten Start neu erstellt.
-
-### Falls Fabric ausserhalb von Docker Compose liegt
-
-Wenn das Fabric-Testnetzwerk nicht Bestandteil der WoodChain-Compose-Datei ist, muss auf dem neuen PC zusaetzlich dieselbe kompatible Version von `fabric-samples` eingerichtet werden. Danach werden im Ordner `fabric-samples/test-network` der Channel `mychannel` und der eigene Chaincode `woodchain` gestartet beziehungsweise bereitgestellt.
-
-Wichtig: Der Pfad zum Chaincode und die Fabric-Version muessen zur Konfiguration des Projekts passen. Automatisch erzeugte Zertifikate vom alten PC sollten nicht kopiert werden. Das neue Netzwerk erzeugt eigene Identitaeten und beginnt mit einer neuen, leeren Blockchain.
-
-### Kurzer Funktionstest auf dem neuen PC
-
-1. Mit `docker compose ps` pruefen, ob alle Container laufen.
-2. `http://localhost:8080` im Browser oeffnen.
-3. Mit einem Testbenutzer anmelden.
-4. Als Foerster eine neue Holzcharge anlegen.
-5. Die Holzcharge in der Rueckverfolgung suchen.
-6. Mit `peer channel getinfo -c mychannel` pruefen, ob ein neuer Block entstanden ist.
-
-Wenn die Website funktioniert, aber die Blockchain nicht erreichbar ist, zuerst die Protokolle der Anwendung und der Fabric-Container kontrollieren:
-
-```bash
-docker compose logs --tail=200
-```
-
-GitHub speichert den Quellcode und die Konfiguration des Projekts, aber nicht automatisch den aktuellen Inhalt der laufenden Blockchain. Auf einem neuen PC entsteht beim Start eines neuen Fabric-Netzwerks eine neue Blockchain.
-
-Damit das Projekt wirklich auf einem anderen PC laeuft, muessen daher im Repository vorhanden sein:
-
-- der Java-/Spring-Boot-Quellcode
-- der eigene WoodChain-Chaincode
-- `pom.xml` beziehungsweise alle benoetigten Build-Dateien
-- `compose.yaml` oder `docker-compose.yml`
-- Startskripte fuer das Fabric-Netzwerk
-- Datenbank-Migrationen
-- `.env.example` mit sicheren Beispielwerten
-- diese README
+Damit die Anwendung funktioniert, müssen sowohl das Fabric-Netzwerk als auch die Compose-Container laufen.
 
 ---
 
-## Wichtig: Hyperledger Fabric hat keine Coins
+# Normaler Start nach einem Neustart
 
-WoodChain verwendet Hyperledger Fabric als private, erlaubnisbasierte Blockchain. Es gibt hier keinen Coin und kein Mining. Gespeichert werden Transaktionen und Zustandsaenderungen, zum Beispiel das Anlegen oder Transportieren einer Holzcharge.
-
-## 1. Umgebung vorbereiten
-
-Im Terminal in das Fabric-Testnetzwerk wechseln:
+Docker Desktop starten und warten, bis die Engine bereit ist. Danach in Ubuntu:
 
 ```bash
-cd ~/hyperledger/fabric-samples/test-network
+unset DOCKER_HOST
+docker context use default
 
-export PATH=${PWD}/../bin:$PATH
-export FABRIC_CFG_PATH=${PWD}/../config
+cd ~/Woodchain/fabric-samples/test-network
+./network.sh up createChannel -c mychannel -ca
 
-source scripts/envVar.sh
-setGlobals 1
+cd ~/Woodchain
+docker compose up -d
 ```
 
-`setGlobals 1` waehlt Organisation 1 (`Org1MSP`) und deren Peer aus.
+Falls das Fabric-Netzwerk zuvor vollständig gelöscht wurde, muss der Chaincode erneut installiert werden:
 
-## 2. Blockchain-Hoehe anzeigen
+```bash
+cd ~/Woodchain/fabric-samples/test-network
+./network.sh deployCC \
+  -ccn woodchain \
+  -ccp ../../chaincode/woodchain \
+  -ccl java \
+  -ccv 1.0 \
+  -ccs 1
+```
+
+---
+
+# Anwendung stoppen
+
+## Nur Webanwendung und MySQL stoppen
+
+```bash
+cd ~/Woodchain
+docker compose down
+```
+
+## Fabric-Netzwerk stoppen und entfernen
+
+```bash
+cd ~/Woodchain/fabric-samples/test-network
+./network.sh down
+```
+
+`network.sh down` entfernt das Testnetzwerk und dessen Ledger-Daten. Beim nächsten Neuaufbau muss der Chaincode erneut installiert werden.
+
+---
+
+# Alles vollständig neu aufbauen
+
+Dieser Ablauf entfernt die aktuellen Compose-Container, die MySQL-Daten und das Fabric-Testnetzwerk:
+
+```bash
+cd ~/Woodchain
+docker compose down -v
+
+cd ~/Woodchain/fabric-samples/test-network
+./network.sh down
+./network.sh up createChannel -c mychannel -ca
+./network.sh deployCC \
+  -ccn woodchain \
+  -ccp ../../chaincode/woodchain \
+  -ccl java \
+  -ccv 1.0 \
+  -ccs 1
+
+cd ~/Woodchain
+docker compose up --build -d
+```
+
+> Achtung: `docker compose down -v` löscht auch die Daten aus dem MySQL-Volume.
+
+---
+
+# Kontrolle und Fehlersuche
+
+## Welche Container laufen?
+
+```bash
+docker ps
+docker ps -a
+```
+
+## Status der WoodChain-Container
+
+```bash
+cd ~/Woodchain
+docker compose ps
+```
+
+## Logs anzeigen
+
+```bash
+cd ~/Woodchain
+docker compose logs --tail=200
+```
+
+## Container erscheinen nicht in Docker Desktop
+
+Zuerst prüfen, welche Docker-Engine Ubuntu verwendet:
+
+```bash
+unset DOCKER_HOST
+docker context use default
+docker context show
+docker info --format '{{.Name}}'
+docker context ls
+```
+
+Erwartet wird:
+
+- Kontext: `default`
+- Engine-Name: normalerweise `docker-desktop`
+
+Danach Docker Desktop vollständig neu starten und erneut ausführen:
+
+```bash
+cd ~/Woodchain
+docker compose up -d
+docker ps
+```
+
+Wenn `docker info --format '{{.Name}}'` einen anderen Linux-Rechnernamen anzeigt, läuft wahrscheinlich noch eine zweite, direkt in Ubuntu installierte Docker-Engine. Dann wurden die Container nicht in Docker Desktop erstellt.
+
+## Compose zeigt keine Container an
+
+`docker compose ps` zeigt nur Container des Compose-Projekts im aktuellen Ordner. Deshalb immer zuerst in den Projektordner wechseln:
+
+```bash
+cd ~/Woodchain
+docker compose ps -a
+```
+
+Fabric-Container gehören nicht zu dieser Compose-Datei. Sie werden stattdessen mit folgendem Befehl angezeigt:
+
+```bash
+docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+```
+
+## Port 8080 ist bereits belegt
+
+```bash
+sudo ss -ltnp | grep ':8080'
+docker ps --format 'table {{.Names}}\t{{.Ports}}'
+```
+
+## Anwendung startet immer wieder neu
+
+```bash
+cd ~/Woodchain
+docker compose ps -a
+docker compose logs --tail=200 woodchain_app
+```
+
+Häufige Ursachen sind:
+
+- Fabric-Netzwerk läuft nicht
+- Chaincode `woodchain` wurde nicht installiert
+- falscher Channel- oder Chaincode-Name
+- MySQL ist noch nicht bereit
+- Zertifikatspfade stimmen nicht
+
+## Prüfen, ob der Chaincode installiert ist
+
+```bash
+docker exec cli peer lifecycle chaincode querycommitted \
+  --channelID mychannel \
+  --name woodchain
+```
+
+Falls kein Container namens `cli` vorhanden ist, kann die Prüfung über die Peer-Umgebungsvariablen des Fabric-Testnetzwerks erfolgen.
+
+---
+
+# Aufbau des Projekts
+
+```text
+Woodchain/
+├── chaincode/woodchain/     eigener Java-Chaincode
+├── fabric-samples/          lokales Fabric-Testnetzwerk
+├── src/                     Spring-Boot-Anwendung und Frontend
+├── compose.yml              Webanwendung und MySQL (ggf. docker-compose.yml)
+├── Dockerfile               Docker-Image der Webanwendung
+└── pom.xml                  Maven-Konfiguration
+```
+
+`fabric-samples` wird bei der Installation lokal heruntergeladen und muss nicht zwingend im GitHub-Repository gespeichert werden. Der eigene Chaincode unter `chaincode/woodchain` gehört dagegen zum Projekt und wird mit Git versioniert.
+
+---
+
+# Technischer Ablauf
+
+1. Ein Benutzer führt in der Weboberfläche eine Aktion aus.
+2. Die Spring-Boot-Anwendung verarbeitet die Anfrage.
+3. Die Fabric Gateway API sendet eine Transaktion an Hyperledger Fabric.
+4. Die Peers prüfen und bestätigen die Transaktion.
+5. Der Orderer ordnet die Transaktionen und erzeugt neue Blöcke.
+6. Die bestätigten Daten werden unveränderbar im Ledger gespeichert.
+7. MySQL speichert zusätzliche Anwendungsdaten wie Benutzer und Rollen.
+
+---
+
+# Rohe Blockchain ansehen
+
+Zuerst die Umgebung für Peer 0 von Organisation 1 setzen:
+
+```bash
+cd ~/Woodchain/fabric-samples/test-network
+
+export PATH="$HOME/Woodchain/fabric-samples/bin:$PATH"
+export FABRIC_CFG_PATH="$HOME/Woodchain/fabric-samples/config"
+export CORE_PEER_TLS_ENABLED=true
+export CORE_PEER_LOCALMSPID="Org1MSP"
+export CORE_PEER_TLS_ROOTCERT_FILE="$PWD/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt"
+export CORE_PEER_MSPCONFIGPATH="$PWD/organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp"
+export CORE_PEER_ADDRESS="localhost:7051"
+export ORDERER_CA="$PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+```
+
+## Anzahl der Blöcke anzeigen
 
 ```bash
 peer channel getinfo -c mychannel
 ```
 
-Wichtige Werte:
+`height` ist die aktuelle Anzahl der Blöcke. Bei `"height":6` existieren die Blöcke mit den Nummern 0 bis 5.
 
-- `height`: Anzahl der Bloecke. Die Zaehlung beginnt bei Block 0.
-- `currentBlockHash`: Hash des aktuellsten Blocks.
-- `previousBlockHash`: Hash des vorherigen Blocks.
-
-Wenn `height` beispielsweise `7` ist, existieren die Bloecke 0 bis 6.
-
-## 3. Neuesten Block herunterladen
+## Neuesten Block herunterladen
 
 ```bash
-peer channel fetch newest newest.block \
+mkdir -p ~/Woodchain/blocks
+
+peer channel fetch newest \
+  ~/Woodchain/blocks/newest.block \
   -c mychannel \
   -o localhost:7050 \
-  --ordererTLSHostnameOverride orderer.example.com \
   --tls \
-  --cafile "$PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+  --cafile "$ORDERER_CA"
 ```
 
-Die Datei `newest.block` ist der rohe Block im binaeren Protocol-Buffer-Format. Beim direkten Oeffnen erscheinen deshalb unlesbare Zeichen.
-
-## 4. Block als Rohdaten ansehen
-
-```bash
-xxd newest.block | less
-```
-
-Die linke Spalte zeigt Positionen, die Mitte Hexadezimalwerte und die rechte Seite lesbare Zeichen. Mit `Q` wird die Ansicht beendet.
-
-## 5. Block in lesbares JSON umwandeln
+Der Block ist zunächst eine binäre Protobuf-Datei. So wird er als lesbare JSON-Datei gespeichert:
 
 ```bash
 configtxlator proto_decode \
-  --input newest.block \
+  --input ~/Woodchain/blocks/newest.block \
   --type common.Block \
-  --output newest-block.json
+  --output ~/Woodchain/blocks/newest.json
 ```
 
-Anschliessend anzeigen:
+## Alle Blöcke einzeln in einen Ordner exportieren
 
 ```bash
-less newest-block.json
-```
-
-Alternativ formatiert mit `jq`:
-
-```bash
-jq . newest-block.json | less
-```
-
-## 6. Aufbau eines Fabric-Blocks
-
-Ein Block besteht auf oberster Ebene aus drei Bereichen:
-
-```text
-Block
-|- header
-|- data
-`- metadata
-```
-
-### `header`
-
-Der Block-Header identifiziert den Block und verbindet ihn kryptografisch mit seinem Vorgaenger.
-
-- `number`: Blocknummer innerhalb des Channels.
-- `previous_hash`: Hash des vorherigen Blocks.
-- `data_hash`: Hash der Transaktionsdaten dieses Blocks.
-
-Im Beispiel:
-
-```json
-{
-  "number": "6",
-  "previous_hash": "mzYK0X61PV0/rzJpqB/ldbpnKxhouxM+Uo7TXZb+19s=",
-  "data_hash": "05kfvcx28gnjtGBoH2B003dV6FGG+YRgXC7fftX5NwE="
-}
-```
-
-Block 6 verweist ueber `previous_hash` auf Block 5. Wird ein alter Block nachtraeglich veraendert, stimmen die Hash-Verknuepfungen nicht mehr. Dadurch werden Manipulationen erkennbar.
-
-### `data`
-
-`data.data` enthaelt die Transaktionen des Blocks. Jeder Eintrag besitzt einen signierten `payload`.
-
-### `metadata`
-
-Dieser Bereich enthaelt Verwaltungsinformationen des Orderers, Signaturen und den Gueltigkeitsstatus der Transaktionen. Die langen Base64-Zeichenfolgen sind kodierte binaere Daten und Zertifikate.
-
-## 7. Transaktion im Beispiel
-
-Der `channel_header` beschreibt die Transaktion:
-
-```json
-{
-  "channel_id": "mychannel",
-  "timestamp": "2026-06-17T14:16:49.234067865Z",
-  "tx_id": "91416d5283362949407657064d459c5b0b3d1916211c44e0ca9bc571496c8909",
-  "type": 3
-}
-```
-
-- `channel_id`: Channel, auf dem die Transaktion gespeichert wurde.
-- `timestamp`: Zeitpunkt der Transaktion in UTC. In Deutschland war dies am 17. Juni 2026 um 16:16:49 Uhr MESZ.
-- `tx_id`: Eindeutige Transaktions-ID.
-- `type: 3`: Normale Endorser-Transaktion, also ein Chaincode-Aufruf.
-
-## 8. Ersteller und Identitaet
-
-Unter `creator` steht:
-
-```json
-"mspid": "Org1MSP"
-```
-
-Das bedeutet, dass die Transaktion mit einer Identitaet aus Organisation 1 eingereicht wurde.
-
-`id_bytes` ist das Base64-kodierte X.509-Zertifikat des Benutzers. Es dient als kryptografische Identitaet. Es ist kein Passwort und kein Coin.
-
-`nonce` ist ein einmaliger Zufallswert. Zusammen mit der Identitaet hilft er dabei, eine eindeutige Transaktions-ID zu erzeugen und Wiederholungen zu verhindern.
-
-## 9. Chaincode-Aufruf und Argumente
-
-Unter `chaincode_proposal_payload` stehen der aufgerufene Chaincode und seine Argumente:
-
-```json
-"name": "woodchain"
-```
-
-Die Werte unter `args` sind Base64-kodiert. Dekodiert ergeben sie:
-
-```text
-CreateWoodWithPlan
-WOOD-20260617-911326
-Eiche
-222
-Deutschland
-Forstamt Foerster Demo
-Bexbach
-Logistik Demo
-Saegewerk Demo
-```
-
-Damit wurde die Holzcharge `WOOD-20260617-911326` angelegt. Die Funktion speichert Holzart, Volumen, Herkunft, Besitzer, Standort und die geplanten Partner.
-
-Einen einzelnen Base64-Wert kann man so dekodieren:
-
-```bash
-echo 'Q3JlYXRlV29vZFdpdGhQbGFu' | base64 --decode
-```
-
-Ergebnis:
-
-```text
-CreateWoodWithPlan
-```
-
-## 10. Endorsements
-
-Unter `endorsements` befinden sich im Beispiel zwei Bestaetigungen:
-
-- ein Endorsement von `Org1MSP`
-- ein Endorsement von `Org2MSP`
-
-Jeder Endorser hat das Simulationsergebnis kryptografisch signiert. Damit wird nachgewiesen, dass die benoetigten Organisationen dem Ergebnis zugestimmt haben.
-
-`endorser` enthaelt die Identitaet des bestaetigenden Peers. `signature` ist dessen digitale Signatur.
-
-## 11. Chaincode-Ergebnis
-
-Im Bereich `response` steht:
-
-```json
-"status": 200
-```
-
-Das bedeutet, dass der Chaincode-Aufruf erfolgreich ausgefuehrt wurde.
-
-`payload` ist das Base64-kodierte Ergebnis. Dekodiert enthaelt es den gespeicherten Zustand der Holzcharge:
-
-```json
-{
-  "harvestDate": "2026-06-17T14:16:49.234067865Z",
-  "id": "WOOD-20260617-911326",
-  "lastUpdate": "2026-06-17T14:16:49.234067865Z",
-  "location": "Bexbach",
-  "logisticsToRetail": "",
-  "logisticsToSawmill": "Logistik Demo",
-  "origin": "Deutschland",
-  "owner": "Forstamt Foerster Demo",
-  "retail": "",
-  "sawmill": "Saegewerk Demo",
-  "status": "HARVESTED",
-  "targetLocation": "Saegewerk Demo",
-  "treeType": "Eiche",
-  "volumeM3": "222"
-}
-```
-
-## 12. Read/Write-Set
-
-Das `rwset` zeigt, was der Chaincode gelesen und geschrieben hat.
-
-### `_lifecycle`
-
-Dieser Namespace gehoert zur Verwaltung des Chaincodes. Fabric liest hier unter anderem die aktuell installierte Chaincode-Sequenz.
-
-### `woodchain`
-
-Dieser Namespace enthaelt die eigentlichen WoodChain-Daten.
-
-Unter `reads` steht der Schluessel:
-
-```text
-WOOD-20260617-911326
-```
-
-`version: null` bedeutet bei dieser Erstellung, dass vorher noch kein Zustand mit diesem Schluessel existierte.
-
-Unter `writes` wird derselbe Schluessel mit dem neuen, Base64-kodierten JSON-Zustand gespeichert:
-
-```json
-{
-  "is_delete": false,
-  "key": "WOOD-20260617-911326",
-  "value": "..."
-}
-```
-
-- `is_delete: false`: Der Datensatz wird geschrieben, nicht geloescht.
-- `key`: Eindeutige ID der Holzcharge im World State.
-- `value`: Neuer Zustand der Holzcharge.
-
-Wichtig: Der World State speichert den aktuellen Zustand fuer schnelle Abfragen. Die Blockchain speichert zusaetzlich die unveraenderliche Folge aller Transaktionen und damit die Historie.
-
-## 13. Signaturen
-
-Die Felder `signature` beweisen kryptografisch, dass die jeweilige Nachricht von der angegebenen Identitaet signiert wurde und seitdem nicht unbemerkt veraendert wurde.
-
-Die Signaturen selbst sind nicht sinnvoll als normaler Text lesbar. Sie werden von Fabric automatisch mit den zugehoerigen Zertifikaten geprueft.
-
-## 14. Kurz erklaert: Was ist hier die Blockchain?
-
-Nicht ein einzelnes JSON-Feld ist allein die Blockchain. Die Blockchain ist die geordnete Kette aller Bloecke des Channels:
-
-```text
-Block 0 -> Block 1 -> Block 2 -> ... -> Block 6
-```
-
-Jeder Block enthaelt:
-
-1. den Hash des vorherigen Blocks,
-2. den Hash seiner eigenen Transaktionsdaten,
-3. signierte Transaktionen,
-4. Bestaetigungen der beteiligten Organisationen,
-5. Metadaten zur Validierung.
-
-Das JSON ist lediglich die lesbare Darstellung eines einzelnen binaeren Fabric-Blocks.
-
-## 15. Bestimmten Block abrufen
-
-Anstelle von `newest` kann eine konkrete Blocknummer angegeben werden:
-
-```bash
-peer channel fetch 6 block-6.block \
-  -c mychannel \
-  -o localhost:7050 \
-  --ordererTLSHostnameOverride orderer.example.com \
-  --tls \
-  --cafile "$PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
-```
-
-Danach dekodieren:
-
-```bash
-configtxlator proto_decode \
-  --input block-6.block \
-  --type common.Block \
-  --output block-6.json
-```
-
-## 16. Alle Bloecke einzeln in einem Ordner speichern
-
-Mit diesem Ablauf werden alle vorhandenen Bloecke einzeln heruntergeladen. Zu jedem Block werden sowohl die rohe binaere `.block`-Datei als auch eine lesbare `.json`-Datei gespeichert.
-
-```bash
-cd ~/hyperledger/fabric-samples/test-network
-
-mkdir -p blockchain-bloecke
-
-HEIGHT=$(peer channel getinfo -c mychannel 2>/dev/null \
-  | sed -n 's/^Blockchain info: //p' \
-  | jq -r '.height')
+cd ~/Woodchain/fabric-samples/test-network
+mkdir -p ~/Woodchain/blocks
+
+HEIGHT=$(peer channel getinfo -c mychannel 2>&1 \
+  | sed -n 's/.*"height":\([0-9]*\).*/\1/p')
 
 for ((i=0; i<HEIGHT; i++)); do
-  peer channel fetch "$i" "blockchain-bloecke/block-$i.block" \
+  peer channel fetch "$i" \
+    "$HOME/Woodchain/blocks/block_$i.block" \
     -c mychannel \
     -o localhost:7050 \
-    --ordererTLSHostnameOverride orderer.example.com \
     --tls \
-    --cafile "$PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+    --cafile "$ORDERER_CA"
 
   configtxlator proto_decode \
-    --input "blockchain-bloecke/block-$i.block" \
+    --input "$HOME/Woodchain/blocks/block_$i.block" \
     --type common.Block \
-    --output "blockchain-bloecke/block-$i.json"
+    --output "$HOME/Woodchain/blocks/block_$i.json"
 done
 ```
 
-Der Ordner sieht danach beispielsweise so aus:
+Danach enthält `~/Woodchain/blocks` jeden Block einzeln als `.block`- und `.json`-Datei.
 
-```text
-blockchain-bloecke/
-|- block-0.block
-|- block-0.json
-|- block-1.block
-|- block-1.json
-|- block-2.block
-`- block-2.json
-```
+## Warum gibt es nach der ersten Holzcharge schon mehrere Blöcke?
 
-- `.block`: Roher, binaerer Fabric-Block.
-- `.json`: Derselbe Block in lesbarer Form.
+Nicht nur eine Holzcharge erzeugt Blockchain-Blöcke. Bereits beim Einrichten werden technische Transaktionen gespeichert, zum Beispiel:
 
-Alle erzeugten Dateien anzeigen:
+- Erstellung und Konfiguration des Channels
+- Freigaben des Chaincodes durch die Organisationen
+- Aktivierung der Chaincode-Definition
+- eigentliche WoodChain-Transaktionen
 
-```bash
-ls -lh blockchain-bloecke
-```
+Deshalb bedeutet beispielsweise eine Blockhöhe von 6 nicht, dass sechs Holzchargen angelegt wurden. Einige Blöcke gehören zur Einrichtung des Netzwerks.
 
-Einen einzelnen Block oeffnen:
+## Rollen
 
-```bash
-less blockchain-bloecke/block-6.json
-```
+- `ADMIN` – Verwaltung und vollständige Übersicht
+- `FOERSTER` – Holzernte und Anlage neuer Holzchargen
+- `LOGISTIK` – Transport
+- `SAEGEWERK` – Verarbeitung
+- `HANDEL` – Handel und Verkauf
 
-Mit `Q` wird die Ansicht beendet.
+---
 
-## 17. Nuetzliche Zusammenfassung mit `jq`
+# Wichtige Begriffe
 
-Blocknummer und Hashes:
+- **Blockchain:** Verkettete Folge von Blöcken mit bestätigten Transaktionen.
+- **Hyperledger Fabric:** Private Blockchain-Plattform für Unternehmen.
+- **Peer:** Knoten, der den Ledger speichert und Transaktionen prüft.
+- **Orderer:** Ordnet bestätigte Transaktionen und erstellt Blöcke.
+- **Channel:** Getrennter Kommunikations- und Ledger-Bereich. WoodChain verwendet `mychannel`.
+- **Chaincode:** Smart Contract mit den Regeln der Anwendung. Er heißt `woodchain`.
+- **Ledger:** Gesamter Datenbestand aus Blockchain und aktuellem Weltzustand.
+- **Certificate Authority:** Erstellt digitale Identitäten und Zertifikate.
+- **Docker:** Startet die einzelnen Bestandteile in isolierten Containern.
 
-```bash
-jq '.header' newest-block.json
-```
+---
 
-Transaktions-ID, Zeit und Channel:
-
-```bash
-jq '.data.data[].payload.header.channel_header | {channel_id, timestamp, tx_id, type}' newest-block.json
-```
-
-Chaincode-Name und Rueckgabestatus:
+# Änderungen zu GitHub hochladen
 
 ```bash
-jq '.data.data[].payload.data.actions[].payload.action.proposal_response_payload.extension | {chaincode: .chaincode_id.name, status: .response.status}' newest-block.json
+cd ~/Woodchain
+git status
+git add .
+git commit -m "Projekt aktualisiert"
+git pull --rebase origin main
+git push origin main
 ```
 
-Geschriebene World-State-Schluessel:
+Die Adresse des Repositorys kann bei Bedarf korrigiert werden:
 
 ```bash
-jq '.data.data[].payload.data.actions[].payload.action.proposal_response_payload.extension.results.ns_rwset[] | select(.namespace == "woodchain") | .rwset.writes[] | {key, is_delete}' newest-block.json
+git remote set-url origin https://github.com/A-Baichenko/Woodchain.git
+git remote -v
 ```
-
-## Merksatz fuer die Praesentation
-
-> Der Block zeigt eine signierte und von Org1 und Org2 bestaetigte Chaincode-Transaktion. Dabei wurde die Holzcharge als neuer Zustand in den WoodChain-Namespace geschrieben. Der vorherige Block-Hash verbindet diesen Block unveraenderlich mit der bestehenden Blockchain.
