@@ -539,6 +539,15 @@ Deshalb bedeutet beispielsweise eine Blockhöhe von 6 nicht, dass sechs Holzchar
 - `SAEGEWERK` – Verarbeitung
 - `HANDEL` – Handel und Verkauf
 
+
+## Einlog-Daten
+
+- `ADMIN` – Benutzername: admin Passwort: admin123
+- `FOERSTER` – Benutzername: foerster Passwort: wood123
+- `LOGISTIK` – Benutzername: logistik Passwort: truck123
+- `SAEGEWERK` – Benutzername: saegewerk Passwort: saw123
+- `HANDEL` – Benutzername: handel Passwort: shop123
+
 ---
 
 # Wichtige Begriffe
