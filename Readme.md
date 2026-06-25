@@ -449,20 +449,54 @@ Woodchain/
 
 # Rohe Blockchain ansehen
 
-Zuerst die Umgebung für Peer 0 von Organisation 1 setzen:
+Die folgenden Befehle funktionieren **lokal und auf dem Root-Server**.  
+Wichtig ist nur: Sie müssen auf dem System ausgeführt werden, auf dem das Hyperledger-Fabric-Netzwerk läuft.
+
+Bei meinem lokalen Setup liegen die Ordner so:
+
+```text
+Fabric-Testnetzwerk: ~/hyperledger/fabric-samples/test-network
+WoodChain-Projekt:   ~/WoodChain
+Block-Export:        ~/WoodChain/blocks
+```
+
+Wichtig: Linux unterscheidet Groß- und Kleinschreibung.  
+`WoodChain` und `Woodchain` sind also nicht derselbe Ordner.
+
+---
+
+## Umgebung für Fabric setzen
+
+Zuerst in das Fabric-Testnetzwerk wechseln:
 
 ```bash
-cd ~/Woodchain/fabric-samples/test-network
+cd ~/hyperledger/fabric-samples/test-network
+```
 
-export PATH="$HOME/Woodchain/fabric-samples/bin:$PATH"
-export FABRIC_CFG_PATH="$HOME/Woodchain/fabric-samples/config"
+Dann die Umgebung für Peer 0 von Organisation 1 setzen:
+
+```bash
+export PATH="${PWD}/../bin:$PATH"
+export FABRIC_CFG_PATH="${PWD}/../config"
+
 export CORE_PEER_TLS_ENABLED=true
 export CORE_PEER_LOCALMSPID="Org1MSP"
-export CORE_PEER_TLS_ROOTCERT_FILE="$PWD/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt"
-export CORE_PEER_MSPCONFIGPATH="$PWD/organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp"
 export CORE_PEER_ADDRESS="localhost:7051"
-export ORDERER_CA="$PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+export CORE_PEER_TLS_ROOTCERT_FILE="${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt"
+export CORE_PEER_MSPCONFIGPATH="${PWD}/organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp"
+
+export ORDERER_CA="${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
 ```
+
+Prüfen, ob der Peer-Befehl funktioniert:
+
+```bash
+peer version
+```
+
+Wenn eine Version angezeigt wird, ist die Umgebung richtig gesetzt.
+
+---
 
 ## Anzahl der Blöcke anzeigen
 
@@ -470,67 +504,244 @@ export ORDERER_CA="$PWD/organizations/ordererOrganizations/example.com/orderers/
 peer channel getinfo -c mychannel
 ```
 
-`height` ist die aktuelle Anzahl der Blöcke. Bei `"height":6` existieren die Blöcke mit den Nummern 0 bis 5.
+Die Ausgabe enthält zum Beispiel:
+
+```json
+{
+  "height": 13,
+  "currentBlockHash": "...",
+  "previousBlockHash": "..."
+}
+```
+
+`height` ist die aktuelle Anzahl der Blöcke.
+
+Beispiel:
+
+```text
+height: 13
+```
+
+bedeutet:
+
+```text
+Es gibt Block 0 bis Block 12.
+```
+
+Die Zählung beginnt also bei 0.
+
+---
 
 ## Neuesten Block herunterladen
 
-```bash
-mkdir -p ~/Woodchain/blocks
+Zuerst den Exportordner erstellen:
 
+```bash
+mkdir -p ~/WoodChain/blocks
+```
+
+Dann den neuesten Block herunterladen:
+
+```bash
 peer channel fetch newest \
-  ~/Woodchain/blocks/newest.block \
+  ~/WoodChain/blocks/newest.block \
   -c mychannel \
   -o localhost:7050 \
   --tls \
   --cafile "$ORDERER_CA"
 ```
 
-Der Block ist zunächst eine binäre Protobuf-Datei. So wird er als lesbare JSON-Datei gespeichert:
+Der Block wird zuerst als binäre `.block`-Datei gespeichert.  
+Diese Datei ist für Menschen noch nicht gut lesbar.
+
+Deshalb wird sie anschließend in JSON umgewandelt:
 
 ```bash
 configtxlator proto_decode \
-  --input ~/Woodchain/blocks/newest.block \
+  --input ~/WoodChain/blocks/newest.block \
   --type common.Block \
-  --output ~/Woodchain/blocks/newest.json
+  --output ~/WoodChain/blocks/newest.json
 ```
 
-## Alle Blöcke einzeln in einen Ordner exportieren
+Danach liegt der neueste Block hier:
+
+```text
+~/WoodChain/blocks/newest.json
+```
+
+---
+
+## Alle Blöcke einzeln exportieren
+
+Mit diesem Befehl werden alle vorhandenen Blöcke einzeln heruntergeladen und zusätzlich als JSON gespeichert:
 
 ```bash
-cd ~/Woodchain/fabric-samples/test-network
-mkdir -p ~/Woodchain/blocks
+cd ~/hyperledger/fabric-samples/test-network
+mkdir -p ~/WoodChain/blocks
 
 HEIGHT=$(peer channel getinfo -c mychannel 2>&1 \
   | sed -n 's/.*"height":\([0-9]*\).*/\1/p')
 
+echo "Gefundene Blockanzahl: $HEIGHT"
+
+if [ -z "$HEIGHT" ]; then
+  echo "Fehler: Die Blockhöhe konnte nicht gelesen werden."
+  exit 1
+fi
+
 for ((i=0; i<HEIGHT; i++)); do
+  echo "Exportiere Block $i..."
+
   peer channel fetch "$i" \
-    "$HOME/Woodchain/blocks/block_$i.block" \
+    "$HOME/WoodChain/blocks/block_$i.block" \
     -c mychannel \
     -o localhost:7050 \
     --tls \
     --cafile "$ORDERER_CA"
 
   configtxlator proto_decode \
-    --input "$HOME/Woodchain/blocks/block_$i.block" \
+    --input "$HOME/WoodChain/blocks/block_$i.block" \
     --type common.Block \
-    --output "$HOME/Woodchain/blocks/block_$i.json"
+    --output "$HOME/WoodChain/blocks/block_$i.json"
 done
 ```
 
-Danach enthält `~/Woodchain/blocks` jeden Block einzeln als `.block`- und `.json`-Datei.
+Danach enthält der Ordner:
+
+```text
+~/WoodChain/blocks
+```
+
+für jeden Block zwei Dateien:
+
+```text
+block_0.block
+block_0.json
+block_1.block
+block_1.json
+block_2.block
+block_2.json
+...
+```
+
+Die `.block`-Dateien sind die rohen Blockchain-Dateien.  
+Die `.json`-Dateien sind die lesbare Version.
+
+In Windows findet man den Ordner ungefähr hier:
+
+```text
+Linux > Ubuntu > home > andre > WoodChain > blocks
+```
+
+Falls der Ordner im Windows Explorer noch leer angezeigt wird, einmal `F5` drücken oder den Ordner neu öffnen.
+
+---
+
+## Export prüfen
+
+Im Terminal kann geprüft werden, ob die Dateien erstellt wurden:
+
+```bash
+ls -lh ~/WoodChain/blocks
+```
+
+Nur die JSON-Dateien anzeigen:
+
+```bash
+ls ~/WoodChain/blocks/*.json
+```
+
+Einen bestimmten Block anzeigen, zum Beispiel Block 12:
+
+```bash
+cat ~/WoodChain/blocks/block_12.json
+```
+
+Schöner formatiert mit `jq`:
+
+```bash
+cat ~/WoodChain/blocks/block_12.json | jq
+```
+
+Falls `jq` noch nicht installiert ist:
+
+```bash
+sudo apt install jq -y
+```
+
+---
 
 ## Warum gibt es nach der ersten Holzcharge schon mehrere Blöcke?
 
-Nicht nur eine Holzcharge erzeugt Blockchain-Blöcke. Bereits beim Einrichten werden technische Transaktionen gespeichert, zum Beispiel:
+Nicht nur eine Holzcharge erzeugt Blockchain-Blöcke.  
+Bereits beim Einrichten von Hyperledger Fabric werden technische Transaktionen in Blöcken gespeichert.
 
-- Erstellung und Konfiguration des Channels
-- Freigaben des Chaincodes durch die Organisationen
+Dazu gehören zum Beispiel:
+
+- Erstellung des Channels `mychannel`
+- Konfiguration des Channels
+- Beitritt der Organisationen zum Channel
+- Installation und Freigabe des Chaincodes
 - Aktivierung der Chaincode-Definition
 - eigentliche WoodChain-Transaktionen
 
-Deshalb bedeutet beispielsweise eine Blockhöhe von 6 nicht, dass sechs Holzchargen angelegt wurden. Einige Blöcke gehören zur Einrichtung des Netzwerks.
+Deshalb bedeutet eine Blockhöhe von zum Beispiel `13` nicht, dass 13 Holzchargen erstellt wurden.
 
+Ein Teil der Blöcke gehört zur technischen Einrichtung des Netzwerks.  
+Die späteren Blöcke enthalten dann die eigentlichen WoodChain-Aktionen, zum Beispiel:
+
+- Holzcharge erstellt
+- Transport gestartet
+- Verarbeitung im Sägewerk
+- Freigabe für den Handel
+
+---
+
+## Wichtig: Lokale Blockchain und Root-Server-Blockchain
+
+Die lokale Blockchain und die Blockchain auf dem Root-Server sind nicht automatisch dieselbe Blockchain.
+
+```text
+Lokaler PC      = eigene lokale Fabric-Blockchain
+Root-Server     = eigene Fabric-Blockchain auf dem Server
+GitHub-Projekt  = nur Quellcode, keine Blockchain-Blöcke
+```
+
+Wenn die Anwendung auf dem Root-Server benutzt wurde, liegen die echten Blöcke auf dem Root-Server.
+
+Dann zuerst per SSH verbinden:
+
+```bash
+ssh root@DEINE_SERVER_IP
+```
+
+Danach müssen die Befehle dort ausgeführt werden.
+
+Wenn die Anwendung lokal benutzt wurde, können die Blöcke lokal mit den oben genannten Befehlen exportiert werden.
+
+---
+
+## Wichtiger Hinweis zu `network.sh down`
+
+Nicht einfach ausführen, wenn die Blockchain-Daten behalten werden sollen:
+
+```bash
+./network.sh down
+```
+
+Dieser Befehl entfernt das Fabric-Testnetzwerk und kann die lokalen Ledger-Daten löschen.
+
+Zum reinen Anschauen oder Exportieren der Blockchain reicht:
+
+```bash
+peer channel getinfo -c mychannel
+```
+
+oder:
+
+```bash
+peer channel fetch newest ...
+```
 ## Rollen
 
 - `ADMIN` – Verwaltung und vollständige Übersicht
